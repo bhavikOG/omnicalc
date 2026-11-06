@@ -11,4 +11,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://bhavikog.github.io/omnicalc/sitemap.xml
+Sitemap: https://omnicalc.me/sitemap.xml
