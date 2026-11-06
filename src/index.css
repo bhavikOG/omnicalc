@@ -4,6 +4,7 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.011em;
   }
 
   code, pre, .font-mono {
@@ -14,4 +15,76 @@
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Apple-inspired Liquid Glass Material System */
+.liquid-canvas {
+  background-color: #f5f6f9;
+  background-image:
+    radial-gradient(at 15% 8%, rgba(79, 70, 229, 0.08) 0px, transparent 48%),
+    radial-gradient(at 85% 12%, rgba(14, 165, 233, 0.07) 0px, transparent 45%),
+    radial-gradient(at 50% 90%, rgba(99, 102, 241, 0.05) 0px, transparent 55%);
+}
+
+.dark .liquid-canvas {
+  background-color: #060913;
+  background-image:
+    radial-gradient(at 15% 8%, rgba(99, 102, 241, 0.14) 0px, transparent 48%),
+    radial-gradient(at 85% 12%, rgba(14, 165, 233, 0.10) 0px, transparent 45%),
+    radial-gradient(at 50% 90%, rgba(79, 70, 229, 0.08) 0px, transparent 55%);
+}
+
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 10px 30px -10px rgba(15, 23, 42, 0.06),
+    0 1px 2px 0 rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+.dark .liquid-glass {
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 14px 36px -12px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+}
+
+.liquid-glass-nav {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .liquid-glass-nav {
+  background: rgba(9, 13, 24, 0.74);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.liquid-well {
+  background: rgba(241, 245, 249, 0.72);
+  border: 1px solid rgba(203, 213, 225, 0.65);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.dark .liquid-well {
+  background: rgba(2, 6, 23, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Tactile Apple-style Range Sliders */
+input[type="range"] {
+  height: 6px;
+  border-radius: 999px;
 }

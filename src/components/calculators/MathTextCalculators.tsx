@@ -5,7 +5,9 @@ import {
   calculateAgeAndDateDiff,
   analyzeTextContent,
 } from '../../utils/calculators';
-import { RotateCcw, Copy, Check } from 'lucide-react';
+import { clampSafeNumber, sanitizeUserText } from '../../utils/security';
+import { CalculatorActionProps } from './FinanceCalculators';
+import { RotateCcw, Copy, Check, BookmarkPlus } from 'lucide-react';
 
 const formatCurrency = (val: number): string =>
   new Intl.NumberFormat('en-US', {
@@ -18,7 +20,7 @@ const formatCurrency = (val: number): string =>
 /**
  * 5. Math: 3-in-1 Percentage Calculator
  */
-export const PercentageCalculator: React.FC = () => {
+export const PercentageCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculation }) => {
   // Mode 1: What is X% of Y?
   const [m1Percent, setM1Percent] = useState<number>(20);
   const [m1Value, setM1Value] = useState<number>(250);
@@ -30,6 +32,7 @@ export const PercentageCalculator: React.FC = () => {
   // Mode 3: % change from X to Y
   const [m3From, setM3From] = useState<number>(80);
   const [m3To, setM3To] = useState<number>(100);
+  const [savedToast, setSavedToast] = useState<boolean>(false);
 
   const result = calculatePercentages(
     m1Percent,
@@ -40,32 +43,66 @@ export const PercentageCalculator: React.FC = () => {
     m3To
   );
 
+  const handleSave = () => {
+    if (!onSaveCalculation) return;
+    onSaveCalculation({
+      calculatorId: 'percentage',
+      calculatorTitle: '3-in-1 Percentage',
+      primaryResult: `${m1Percent}% of ${m1Value} = ${Number(result.percentOfValue.toFixed(2))}`,
+      detailSummary: `Ratio: ${
+        result.whatPercentOf !== null ? `${Number(result.whatPercentOf.toFixed(1))}%` : 'N/A'
+      } · Δ: ${
+        result.percentageChange !== null
+          ? `${result.isIncrease ? '+' : ''}${Number(result.percentageChange.toFixed(1))}%`
+          : 'N/A'
+      }`,
+    });
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 1800);
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 space-y-6">
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+    <div className="liquid-glass rounded-2xl p-6 sm:p-8 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 dark:border-slate-800/70 pb-4">
         <h2 className="text-base font-bold text-slate-900 dark:text-white">
           3-in-1 Simultaneous Percentage Solver
         </h2>
-        <button
-          type="button"
-          onClick={() => {
-            setM1Percent(20);
-            setM1Value(250);
-            setM2Part(45);
-            setM2Whole(180);
-            setM3From(80);
-            setM3To(100);
-          }}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset All</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onSaveCalculation && (
+            <button
+              type="button"
+              onClick={handleSave}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 hover:bg-indigo-100 transition-colors cursor-pointer"
+            >
+              {savedToast ? (
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+              ) : (
+                <BookmarkPlus className="w-3.5 h-3.5" />
+              )}
+              <span>{savedToast ? 'Saved' : 'Save Scenario'}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setM1Percent(20);
+              setM1Value(250);
+              setM2Part(45);
+              setM2Whole(180);
+              setM3From(80);
+              setM3To(100);
+            }}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset All</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card 1: What is X% of Y? */}
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 p-5 flex flex-col justify-between space-y-5">
+        <div className="liquid-well rounded-xl p-5 flex flex-col justify-between space-y-5">
           <div className="space-y-4">
             <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
               01. Percentage of a Number
@@ -83,8 +120,8 @@ export const PercentageCalculator: React.FC = () => {
                   type="number"
                   step="any"
                   value={m1Percent}
-                  onChange={(e) => setM1Percent(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                  onChange={(e) => setM1Percent(clampSafeNumber(e.target.value, -1e9, 1e9, 0))}
+                  className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
                 />
               </div>
               <div>
@@ -99,14 +136,14 @@ export const PercentageCalculator: React.FC = () => {
                   type="number"
                   step="any"
                   value={m1Value}
-                  onChange={(e) => setM1Value(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                  onChange={(e) => setM1Value(clampSafeNumber(e.target.value, -1e9, 1e9, 0))}
+                  className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
                 />
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800/70">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {m1Percent}% of {m1Value} equals
             </div>
@@ -120,7 +157,7 @@ export const PercentageCalculator: React.FC = () => {
         </div>
 
         {/* Card 2: X is what % of Y? */}
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 p-5 flex flex-col justify-between space-y-5">
+        <div className="liquid-well rounded-xl p-5 flex flex-col justify-between space-y-5">
           <div className="space-y-4">
             <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
               02. Ratio as a Percentage
@@ -138,8 +175,8 @@ export const PercentageCalculator: React.FC = () => {
                   type="number"
                   step="any"
                   value={m2Part}
-                  onChange={(e) => setM2Part(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                  onChange={(e) => setM2Part(clampSafeNumber(e.target.value, -1e9, 1e9, 0))}
+                  className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
                 />
               </div>
               <div>
@@ -154,14 +191,14 @@ export const PercentageCalculator: React.FC = () => {
                   type="number"
                   step="any"
                   value={m2Whole}
-                  onChange={(e) => setM2Whole(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                  onChange={(e) => setM2Whole(clampSafeNumber(e.target.value, -1e9, 1e9, 0))}
+                  className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
                 />
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800/70">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {m2Part} out of {m2Whole} is
             </div>
@@ -177,7 +214,7 @@ export const PercentageCalculator: React.FC = () => {
         </div>
 
         {/* Card 3: Percentage Increase / Decrease */}
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 p-5 flex flex-col justify-between space-y-5">
+        <div className="liquid-well rounded-xl p-5 flex flex-col justify-between space-y-5">
           <div className="space-y-4">
             <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
               03. Percentage Change (%Δ)
@@ -195,8 +232,8 @@ export const PercentageCalculator: React.FC = () => {
                   type="number"
                   step="any"
                   value={m3From}
-                  onChange={(e) => setM3From(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                  onChange={(e) => setM3From(clampSafeNumber(e.target.value, -1e9, 1e9, 0))}
+                  className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
                 />
               </div>
               <div>
@@ -211,14 +248,14 @@ export const PercentageCalculator: React.FC = () => {
                   type="number"
                   step="any"
                   value={m3To}
-                  onChange={(e) => setM3To(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                  onChange={(e) => setM3To(clampSafeNumber(e.target.value, -1e9, 1e9, 0))}
+                  className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
                 />
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800/70">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               Difference: {result.difference >= 0 ? `+${result.difference}` : result.difference}
             </div>
@@ -246,11 +283,12 @@ export const PercentageCalculator: React.FC = () => {
 /**
  * 6. Math: Discount & Sales Tax Calculator
  */
-export const DiscountTaxCalculator: React.FC = () => {
+export const DiscountTaxCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculation }) => {
   const [originalPrice, setOriginalPrice] = useState<number>(150);
   const [discountPercent, setDiscountPercent] = useState<number>(30);
   const [extraDiscountPercent, setExtraDiscountPercent] = useState<number>(10);
   const [taxPercent, setTaxPercent] = useState<number>(8.25);
+  const [savedToast, setSavedToast] = useState<boolean>(false);
 
   const result = calculateDiscountAndTax(
     originalPrice,
@@ -259,27 +297,55 @@ export const DiscountTaxCalculator: React.FC = () => {
     taxPercent
   );
 
+  const handleSave = () => {
+    if (!onSaveCalculation) return;
+    onSaveCalculation({
+      calculatorId: 'discount-tax',
+      calculatorTitle: 'Discount & Sales Tax',
+      primaryResult: `${formatCurrency(result.finalPayablePrice)} Final`,
+      detailSummary: `Saved ${formatCurrency(result.totalSavings)} (${result.effectiveDiscountPercent.toFixed(1)}% off) + ${taxPercent}% tax`,
+    });
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 1800);
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8">
+    <div className="liquid-glass rounded-2xl p-6 sm:p-8">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div className="lg:col-span-6 space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
-              Price, Discounts & Sales Tax
+              Price, Discounts &amp; Sales Tax
             </h2>
-            <button
-              type="button"
-              onClick={() => {
-                setOriginalPrice(150);
-                setDiscountPercent(30);
-                setExtraDiscountPercent(10);
-                setTaxPercent(8.25);
-              }}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {onSaveCalculation && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 hover:bg-indigo-100 transition-colors cursor-pointer"
+                >
+                  {savedToast ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  ) : (
+                    <BookmarkPlus className="w-3.5 h-3.5" />
+                  )}
+                  <span>{savedToast ? 'Saved' : 'Save Scenario'}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setOriginalPrice(150);
+                  setDiscountPercent(30);
+                  setExtraDiscountPercent(10);
+                  setTaxPercent(8.25);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -296,8 +362,8 @@ export const DiscountTaxCalculator: React.FC = () => {
                 min={0}
                 step={1}
                 value={originalPrice}
-                onChange={(e) => setOriginalPrice(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                onChange={(e) => setOriginalPrice(clampSafeNumber(e.target.value, 0, 1e8, 0))}
+                className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
               />
             </div>
 
@@ -315,8 +381,8 @@ export const DiscountTaxCalculator: React.FC = () => {
                 max={30}
                 step={0.25}
                 value={taxPercent}
-                onChange={(e) => setTaxPercent(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                onChange={(e) => setTaxPercent(clampSafeNumber(e.target.value, 0, 100, 0))}
+                className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
               />
             </div>
           </div>
@@ -336,8 +402,8 @@ export const DiscountTaxCalculator: React.FC = () => {
                 max={100}
                 step={1}
                 value={discountPercent}
-                onChange={(e) => setDiscountPercent(Math.max(0, Math.min(100, Number(e.target.value))))}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                onChange={(e) => setDiscountPercent(clampSafeNumber(e.target.value, 0, 100, 0))}
+                className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
               />
             </div>
 
@@ -355,17 +421,15 @@ export const DiscountTaxCalculator: React.FC = () => {
                 max={100}
                 step={1}
                 value={extraDiscountPercent}
-                onChange={(e) =>
-                  setExtraDiscountPercent(Math.max(0, Math.min(100, Number(e.target.value))))
-                }
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                onChange={(e) => setExtraDiscountPercent(clampSafeNumber(e.target.value, 0, 100, 0))}
+                className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
               />
             </div>
           </div>
         </div>
 
         {/* Receipt Summary */}
-        <div className="lg:col-span-6 space-y-5 lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-8">
+        <div className="lg:col-span-6 space-y-5 lg:border-l lg:border-slate-200/70 dark:lg:border-slate-800/70 lg:pl-8">
           <div className="flex items-baseline justify-between">
             <div>
               <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -386,7 +450,7 @@ export const DiscountTaxCalculator: React.FC = () => {
             </div>
           </div>
 
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 space-y-2.5 text-xs sm:text-sm font-mono tabular-nums">
+          <div className="liquid-well rounded-xl p-4 space-y-2.5 text-xs sm:text-sm font-mono tabular-nums">
             <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>Original Price</span>
               <span>{formatCurrency(result.originalPrice)}</span>
@@ -401,7 +465,7 @@ export const DiscountTaxCalculator: React.FC = () => {
                 <span>-{formatCurrency(result.additionalDiscountAmount)}</span>
               </div>
             )}
-            <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 text-slate-800 dark:text-slate-200 font-semibold">
+            <div className="flex justify-between border-t border-slate-200/70 dark:border-slate-800/70 pt-2 text-slate-800 dark:text-slate-200 font-semibold">
               <span>Discounted Pre-Tax Subtotal</span>
               <span>{formatCurrency(result.discountedSubtotal)}</span>
             </div>
@@ -419,32 +483,61 @@ export const DiscountTaxCalculator: React.FC = () => {
 /**
  * 7. Math: Age & Date Difference Calculator
  */
-export const AgeDateCalculator: React.FC = () => {
+export const AgeDateCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculation }) => {
   const [startDate, setStartDate] = useState<string>('2000-05-15');
   const [endDate, setEndDate] = useState<string>('2026-11-06');
+  const [savedToast, setSavedToast] = useState<boolean>(false);
 
   const result = calculateAgeAndDateDiff(startDate, endDate);
 
+  const handleSave = () => {
+    if (!onSaveCalculation || !result.isValid) return;
+    onSaveCalculation({
+      calculatorId: 'age-date',
+      calculatorTitle: 'Age & Date Difference',
+      primaryResult: `${result.years}y ${result.months}m ${result.days}d`,
+      detailSummary: `${startDate} → ${endDate} (${result.totalDays.toLocaleString()} days)`,
+    });
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 1800);
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8">
+    <div className="liquid-glass rounded-2xl p-6 sm:p-8">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Inputs */}
         <div className="lg:col-span-5 space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
               Select Dates
             </h2>
-            <button
-              type="button"
-              onClick={() => {
-                setStartDate('2000-05-15');
-                setEndDate('2026-11-06');
-              }}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {onSaveCalculation && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 hover:bg-indigo-100 transition-colors cursor-pointer"
+                >
+                  {savedToast ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  ) : (
+                    <BookmarkPlus className="w-3.5 h-3.5" />
+                  )}
+                  <span>{savedToast ? 'Saved' : 'Save Dates'}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate('2000-05-15');
+                  setEndDate('2026-11-06');
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -460,7 +553,7 @@ export const AgeDateCalculator: React.FC = () => {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
               />
             </div>
 
@@ -488,14 +581,14 @@ export const AgeDateCalculator: React.FC = () => {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                className="w-full rounded-lg border border-slate-300/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
               />
             </div>
           </div>
         </div>
 
         {/* Outputs */}
-        <div className="lg:col-span-7 space-y-6 lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-8">
+        <div className="lg:col-span-7 space-y-6 lg:border-l lg:border-slate-200/70 dark:lg:border-slate-800/70 lg:pl-8">
           {result.isValid ? (
             <>
               <div>
@@ -511,25 +604,25 @@ export const AgeDateCalculator: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3">
+                <div className="liquid-well rounded-xl p-3">
                   <div className="text-xs text-slate-500 dark:text-slate-400">Total Days</div>
                   <div className="text-base font-mono font-bold text-slate-900 dark:text-white tabular-nums mt-0.5">
                     {result.totalDays.toLocaleString()}
                   </div>
                 </div>
-                <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3">
+                <div className="liquid-well rounded-xl p-3">
                   <div className="text-xs text-slate-500 dark:text-slate-400">Total Weeks</div>
                   <div className="text-base font-mono font-bold text-slate-900 dark:text-white tabular-nums mt-0.5">
                     {result.totalWeeks.toLocaleString()}w {result.remainingDaysAfterWeeks}d
                   </div>
                 </div>
-                <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3">
+                <div className="liquid-well rounded-xl p-3">
                   <div className="text-xs text-slate-500 dark:text-slate-400">Total Hours</div>
                   <div className="text-base font-mono font-bold text-slate-900 dark:text-white tabular-nums mt-0.5">
                     {result.totalHours.toLocaleString()}
                   </div>
                 </div>
-                <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3">
+                <div className="liquid-well rounded-xl p-3">
                   <div className="text-xs text-slate-500 dark:text-slate-400">Next Birthday</div>
                   <div className="text-base font-mono font-bold text-emerald-600 dark:text-emerald-400 tabular-nums mt-0.5">
                     in {result.daysUntilNextAnniversary} days
@@ -555,9 +648,10 @@ const DEFAULT_SAMPLE_TEXT = `Good financial and health decisions compound over t
 
 Use this live lexical analyzer to inspect word count, character limits for SEO meta descriptions and social posts, estimated reading time, and top keyword density.`;
 
-export const WordCounterCalculator: React.FC = () => {
+export const WordCounterCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculation }) => {
   const [text, setText] = useState<string>(DEFAULT_SAMPLE_TEXT);
   const [copied, setCopied] = useState<boolean>(false);
+  const [savedToast, setSavedToast] = useState<boolean>(false);
 
   const stats = analyzeTextContent(text);
 
@@ -569,11 +663,23 @@ export const WordCounterCalculator: React.FC = () => {
     }
   };
 
+  const handleSave = () => {
+    if (!onSaveCalculation) return;
+    onSaveCalculation({
+      calculatorId: 'word-counter',
+      calculatorTitle: 'Word & Reading Counter',
+      primaryResult: `${stats.words.toLocaleString()} words · ${stats.charactersWithSpaces.toLocaleString()} chars`,
+      detailSummary: `Read time: ${stats.readingTimeFormatted} · Sentences: ${stats.sentences}`,
+    });
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 1800);
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 space-y-6">
+    <div className="liquid-glass rounded-2xl p-6 sm:p-8 space-y-6">
       {/* Top Live Metric Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3.5">
+        <div className="liquid-well rounded-xl p-3.5">
           <div className="text-xs text-slate-500 dark:text-slate-400">Words</div>
           <div
             data-testid="word-count-value"
@@ -582,7 +688,7 @@ export const WordCounterCalculator: React.FC = () => {
             {stats.words.toLocaleString()}
           </div>
         </div>
-        <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3.5">
+        <div className="liquid-well rounded-xl p-3.5">
           <div className="text-xs text-slate-500 dark:text-slate-400">Characters</div>
           <div
             data-testid="char-count-value"
@@ -591,25 +697,25 @@ export const WordCounterCalculator: React.FC = () => {
             {stats.charactersWithSpaces.toLocaleString()}
           </div>
         </div>
-        <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3.5">
+        <div className="liquid-well rounded-xl p-3.5">
           <div className="text-xs text-slate-500 dark:text-slate-400">No Spaces</div>
           <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tabular-nums mt-0.5">
             {stats.charactersWithoutSpaces.toLocaleString()}
           </div>
         </div>
-        <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3.5">
+        <div className="liquid-well rounded-xl p-3.5">
           <div className="text-xs text-slate-500 dark:text-slate-400">Sentences / Paras</div>
           <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tabular-nums mt-0.5">
             {stats.sentences} / {stats.paragraphs}
           </div>
         </div>
-        <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3.5">
+        <div className="liquid-well rounded-xl p-3.5">
           <div className="text-xs text-slate-500 dark:text-slate-400">Reading Time</div>
           <div className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
             {stats.readingTimeFormatted}
           </div>
         </div>
-        <div className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3.5">
+        <div className="liquid-well rounded-xl p-3.5">
           <div className="text-xs text-slate-500 dark:text-slate-400">Speaking Time</div>
           <div className="text-lg font-bold font-mono text-amber-600 dark:text-amber-400 tabular-nums mt-1">
             {stats.speakingTimeFormatted}
@@ -624,27 +730,41 @@ export const WordCounterCalculator: React.FC = () => {
             htmlFor="word-counter-textarea"
             className="text-xs font-semibold text-slate-700 dark:text-slate-300"
           >
-            Enter or Paste Your Text Below
+            Enter or Paste Your Text Below (Sanitized Client-Side)
           </label>
           <div className="flex flex-wrap items-center gap-2">
+            {onSaveCalculation && (
+              <button
+                type="button"
+                onClick={handleSave}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 hover:bg-indigo-100 transition-colors cursor-pointer"
+              >
+                {savedToast ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                  <BookmarkPlus className="w-3.5 h-3.5" />
+                )}
+                <span>{savedToast ? 'Saved' : 'Save Snapshot'}</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setText(text.toUpperCase())}
-              className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               UPPERCASE
             </button>
             <button
               type="button"
               onClick={() => setText(text.toLowerCase())}
-              className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               lowercase
             </button>
             <button
               type="button"
               onClick={handleCopy}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -652,14 +772,14 @@ export const WordCounterCalculator: React.FC = () => {
             <button
               type="button"
               onClick={() => setText('')}
-              className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer"
+              className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer"
             >
               Clear Text
             </button>
             <button
               type="button"
               onClick={() => setText(DEFAULT_SAMPLE_TEXT)}
-              className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-pointer"
+              className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-pointer"
             >
               Restore Sample
             </button>
@@ -670,9 +790,9 @@ export const WordCounterCalculator: React.FC = () => {
           id="word-counter-textarea"
           rows={7}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => setText(sanitizeUserText(e.target.value, 50000))}
           placeholder="Start typing or paste your essay, article, or social media post here..."
-          className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-4 text-sm sm:text-base text-slate-900 dark:text-white leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-600"
+          className="w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 p-4 text-sm sm:text-base text-slate-900 dark:text-white leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-600"
         />
       </div>
 
@@ -683,7 +803,7 @@ export const WordCounterCalculator: React.FC = () => {
             Top Keyword Density (Excluding Stop Words)
           </h3>
           {stats.topKeywords.length > 0 ? (
-            <div className="divide-y divide-slate-200 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-2 text-xs">
+            <div className="divide-y divide-slate-200/70 dark:divide-slate-800/70 liquid-well rounded-xl px-4 py-2 text-xs">
               {stats.topKeywords.map((kw) => (
                 <div key={kw.word} className="py-2 flex items-center justify-between">
                   <span className="font-mono font-medium text-slate-900 dark:text-white">
@@ -696,7 +816,7 @@ export const WordCounterCalculator: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 text-xs text-slate-500">
+            <div className="liquid-well rounded-xl p-4 text-xs text-slate-500">
               Type at least a few words to see live keyword frequency and density metrics.
             </div>
           )}
@@ -704,9 +824,9 @@ export const WordCounterCalculator: React.FC = () => {
 
         <div className="space-y-2.5">
           <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            SEO & Social Character Limit Check
+            SEO &amp; Social Character Limit Check
           </h3>
-          <div className="divide-y divide-slate-200 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-2 text-xs font-mono tabular-nums">
+          <div className="divide-y divide-slate-200/70 dark:divide-slate-800/70 liquid-well rounded-xl px-4 py-2 text-xs font-mono tabular-nums">
             <div className="py-2 flex justify-between">
               <span className="font-sans text-slate-700 dark:text-slate-300">Google SEO Title (60 chars)</span>
               <span className={stats.charactersWithSpaces <= 60 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>

@@ -16,7 +16,13 @@ import {
   generateRobotsTxt,
   parsePathnameToRoute,
   buildSchemaOrgGraph,
+  normalizeBaseUrl,
 } from './seoSitemap';
+import {
+  sanitizeUserText,
+  sanitizeSingleLineInput,
+  clampSafeNumber,
+} from './security';
 import { CALCULATOR_CATALOG } from '../data/calculatorCatalog';
 
 test('Loan EMI Calculator computes accurate monthly EMI and breakdown', () => {
@@ -93,19 +99,20 @@ test('Live Word & Character Counter counts words, sentences, paragraphs and read
 });
 
 test('Dynamic Sitemap Generator includes all 8 calculator routes, categories, and legal pages', () => {
-  const entries = getSitemapEntries('https://omnicalc.example.com', '2026-11-06');
+  const entries = getSitemapEntries('https://omnicalc.app', '2026-11-06');
   // 1 home + 8 calculators + 4 categories + 5 legal pages = 18 canonical routes
   assert.equal(entries.length, 18);
 
-  const xml = generateSitemapXml('https://omnicalc.example.com', '2026-11-06');
+  const xml = generateSitemapXml('https://omnicalc.app', '2026-11-06');
   assert.ok(xml.includes('<urlset'));
   for (const calc of CALCULATOR_CATALOG) {
-    assert.ok(xml.includes(`https://omnicalc.example.com/calculators/${calc.id}`));
+    assert.ok(xml.includes(`https://omnicalc.app/calculators/${calc.id}`));
   }
 
-  const robots = generateRobotsTxt('https://omnicalc.example.com');
+  const robots = generateRobotsTxt('https://omnicalc.app');
   assert.ok(robots.includes('User-agent: Mediapartners-Google'));
-  assert.ok(robots.includes('Sitemap: https://omnicalc.example.com/sitemap.xml'));
+  assert.ok(robots.includes('Sitemap: https://omnicalc.app/sitemap.xml'));
+  assert.equal(normalizeBaseUrl(), 'https://omnicalc.app');
 });
 
 test('URL Route Parser and Schema.org Graph Builder resolve calculator routes cleanly', () => {
@@ -115,7 +122,7 @@ test('URL Route Parser and Schema.org Graph Builder resolve calculator routes cl
   const parsedCat = parsePathnameToRoute('/category/health');
   assert.deepEqual(parsedCat, { view: 'home', categoryFilter: 'Health' });
 
-  const schema = buildSchemaOrgGraph('https://omnicalc.example.com', {
+  const schema = buildSchemaOrgGraph('https://omnicalc.app', {
     view: 'calculator',
     meta: CALCULATOR_CATALOG[0],
   }) as { '@graph': Array<{ '@type': string }> };
@@ -126,3 +133,18 @@ test('URL Route Parser and Schema.org Graph Builder resolve calculator routes cl
   assert.ok(types.includes('BreadcrumbList'));
 });
 
+test('Security & XSS input sanitization strips script vectors and clamps numeric bounds', () => {
+  const malicious = '<script>alert("xss")</script>Hello <b>World</b> javascript:evil()';
+  const cleaned = sanitizeUserText(malicious, 200);
+  assert.ok(!cleaned.includes('<script>'));
+  assert.ok(!cleaned.includes('javascript:'));
+  assert.ok(cleaned.includes('Hello World'));
+
+  const singleLine = sanitizeSingleLineInput('   Loan <img onerror=alert(1)> EMI   ', 50);
+  assert.ok(!singleLine.includes('<'));
+  assert.ok(!singleLine.includes('onerror='));
+
+  assert.equal(clampSafeNumber(999999, 0, 1000, 50), 1000);
+  assert.equal(clampSafeNumber(-25, 0, 1000, 50), 0);
+  assert.equal(clampSafeNumber(NaN, 0, 1000, 50), 50);
+});
