@@ -1,0 +1,14 @@
+# OmniCalc Web Crawler Configuration
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: https://bhavikog.github.io/omnicalc/sitemap.xml
