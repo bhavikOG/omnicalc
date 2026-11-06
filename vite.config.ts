@@ -46,11 +46,11 @@ export default defineConfig(({ mode }) => {
   const appUrl =
     env.VITE_SITE_URL ||
     env.APP_URL ||
-    'https://bhavikog.github.io/omnicalc';
+    'https://omnicalc.me';
 
   return {
     plugins: [react(), tailwindcss(), omnicalcDynamicSitemapPlugin(appUrl)],
-    base: process.env.NODE_ENV === 'production' ? '/omnicalc/' : '/',
+    base: '/',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

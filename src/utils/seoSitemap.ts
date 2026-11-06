@@ -59,7 +59,7 @@ export const LEGAL_PAGE_META: Record<
 };
 
 export function normalizeBaseUrl(rawUrl?: string): string {
-  const fallback = 'https://bhavikog.github.io/omnicalc';
+  const fallback = 'https://omnicalc.me';
   if (!rawUrl || rawUrl === 'MY_APP_URL' || !rawUrl.startsWith('http')) {
     return fallback;
   }
