@@ -360,15 +360,36 @@ export const BmiCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculati
  * 4. Health: TDEE / Daily Calorie Deficit Calculator
  */
 export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculation }) => {
+  const [unitSystem, setUnitSystem] = useState<'metric' | 'imperial'>('metric');
   const [gender, setGender] = useState<Gender>('male');
   const [age, setAge] = useState<number>(30);
   const [weightKg, setWeightKg] = useState<number>(80);
   const [heightCm, setHeightCm] = useState<number>(180);
+
+  // Imperial helper state
+  const [weightLbs, setWeightLbs] = useState<number>(176);
+  const [heightFeet, setHeightFeet] = useState<number>(5);
+  const [heightInches, setHeightInches] = useState<number>(11);
+
   const [activity, setActivity] = useState<ActivityLevel>('moderate');
   const [goalOffset, setGoalOffset] = useState<number>(-500);
   const [savedToast, setSavedToast] = useState<boolean>(false);
 
-  const result = calculateTdee(gender, age, weightKg, heightCm, activity, goalOffset);
+  const effectiveWeightKg =
+    unitSystem === 'metric' ? weightKg : weightLbs * 0.45359237;
+  const effectiveHeightCm =
+    unitSystem === 'metric'
+      ? heightCm
+      : (heightFeet * 12 + heightInches) * 2.54;
+
+  const result = calculateTdee(
+    gender,
+    age,
+    effectiveWeightKg,
+    effectiveHeightCm,
+    activity,
+    goalOffset
+  );
   const selectedTargetCalories = Math.max(1200, result.tdee + goalOffset);
 
   const handleSave = () => {
@@ -387,34 +408,65 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Inputs */}
         <div className="lg:col-span-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <div
-              role="group"
-              aria-label="Biological Sex"
-              className="inline-flex rounded-xl liquid-well p-1"
-            >
-              <button
-                type="button"
-                onClick={() => setGender('male')}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                  gender === 'male'
-                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                role="group"
+                aria-label="Biological Sex"
+                className="inline-flex rounded-xl liquid-well p-1"
               >
-                Male
-              </button>
-              <button
-                type="button"
-                onClick={() => setGender('female')}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                  gender === 'female'
-                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
+                <button
+                  type="button"
+                  onClick={() => setGender('male')}
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                    gender === 'male'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Male
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGender('female')}
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                    gender === 'female'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Female
+                </button>
+              </div>
+
+              <div
+                role="group"
+                aria-label="TDEE Unit System"
+                className="inline-flex rounded-xl liquid-well p-1"
               >
-                Female
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setUnitSystem('metric')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                    unitSystem === 'metric'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  kg / cm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUnitSystem('imperial')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                    unitSystem === 'imperial'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  lbs / ft
+                </button>
+              </div>
             </div>
 
             <button
@@ -424,6 +476,9 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
                 setAge(30);
                 setWeightKg(80);
                 setHeightCm(180);
+                setWeightLbs(176);
+                setHeightFeet(5);
+                setHeightInches(11);
                 setActivity('moderate');
                 setGoalOffset(-500);
               }}
@@ -434,50 +489,111 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="tdee-age" className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Age (Years)
-              </label>
-              <input
-                id="tdee-age"
-                type="number"
-                min={15}
-                max={100}
-                value={age}
-                onChange={(e) => setAge(clampSafeNumber(e.target.value, 15, 100, 30))}
-                className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
-              />
+          {unitSystem === 'metric' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label htmlFor="tdee-age" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Age (Years)
+                </label>
+                <input
+                  id="tdee-age"
+                  type="number"
+                  min={15}
+                  max={100}
+                  value={age}
+                  onChange={(e) => setAge(clampSafeNumber(e.target.value, 15, 100, 30))}
+                  className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="tdee-weight" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Weight (kg)
+                </label>
+                <input
+                  id="tdee-weight"
+                  type="number"
+                  min={30}
+                  max={250}
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(clampSafeNumber(e.target.value, 30, 250, 80))}
+                  className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="tdee-height" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Height (cm)
+                </label>
+                <input
+                  id="tdee-height"
+                  type="number"
+                  min={100}
+                  max={240}
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(clampSafeNumber(e.target.value, 100, 240, 180))}
+                  className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="tdee-weight" className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Weight (kg)
-              </label>
-              <input
-                id="tdee-weight"
-                type="number"
-                min={30}
-                max={250}
-                value={weightKg}
-                onChange={(e) => setWeightKg(clampSafeNumber(e.target.value, 30, 250, 80))}
-                className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
-              />
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="space-y-1.5">
+                <label htmlFor="tdee-age-imp" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Age (Years)
+                </label>
+                <input
+                  id="tdee-age-imp"
+                  type="number"
+                  min={15}
+                  max={100}
+                  value={age}
+                  onChange={(e) => setAge(clampSafeNumber(e.target.value, 15, 100, 30))}
+                  className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="tdee-weight-lbs" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Weight (lbs)
+                </label>
+                <input
+                  id="tdee-weight-lbs"
+                  type="number"
+                  min={66}
+                  max={550}
+                  value={weightLbs}
+                  onChange={(e) => setWeightLbs(clampSafeNumber(e.target.value, 66, 550, 176))}
+                  className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="tdee-height-ft" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Height (ft)
+                </label>
+                <input
+                  id="tdee-height-ft"
+                  type="number"
+                  min={3}
+                  max={8}
+                  value={heightFeet}
+                  onChange={(e) => setHeightFeet(clampSafeNumber(e.target.value, 3, 8, 5))}
+                  className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="tdee-height-in" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Height (in)
+                </label>
+                <input
+                  id="tdee-height-in"
+                  type="number"
+                  min={0}
+                  max={11}
+                  value={heightInches}
+                  onChange={(e) => setHeightInches(clampSafeNumber(e.target.value, 0, 11, 11))}
+                  className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="tdee-height" className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Height (cm)
-              </label>
-              <input
-                id="tdee-height"
-                type="number"
-                min={100}
-                max={240}
-                value={heightCm}
-                onChange={(e) => setHeightCm(clampSafeNumber(e.target.value, 100, 240, 180))}
-                className="w-full rounded-xl liquid-well px-3 py-2 text-sm font-mono text-slate-900 dark:text-white tabular-nums"
-              />
-            </div>
-          </div>
+          )}
 
           <div className="space-y-1.5">
             <label htmlFor="tdee-activity" className="text-xs font-medium text-slate-700 dark:text-slate-300">
@@ -522,7 +638,7 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Maintenance TDEE
+                  Maintenance Calories
                 </div>
                 <div
                   data-testid="tdee-maintenance-calories"
@@ -570,7 +686,7 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
               </div>
             </div>
             <div>
-              <span className="text-slate-500 dark:text-slate-400">+250 Lean Bulk</span>
+              <span className="text-slate-500 dark:text-slate-400">+250 Surplus</span>
               <div className="font-mono font-semibold text-amber-600 dark:text-amber-400 text-sm mt-0.5 tabular-nums">
                 {result.leanBulkCalories.toLocaleString()} kcal
               </div>

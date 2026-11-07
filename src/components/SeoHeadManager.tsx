@@ -32,7 +32,7 @@ export const SeoHeadManager: React.FC<SeoHeadManagerProps> = ({ route, categoryF
 
     let pageTitle = 'OmniCalc — Precision Financial, Health, Math & Text Calculators';
     let pageDescription =
-      'Free, precision online calculators for mortgage, loan EMI, compound interest, BMI, calories, percentage, and text utilities with step-by-step formulas.';
+      'Fast, accessible, AdSense-ready multi-calculator web portal featuring Loan EMI, Compound Interest, BMI, TDEE, Percentage, Discount, Age, and Word Counter tools.';
     let canonicalPath = '/';
     let jsonLdPayload: Record<string, unknown>;
 

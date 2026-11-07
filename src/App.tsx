@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, Variants } from 'motion/react';
 import {
   CALCULATOR_CATALOG,
   CATEGORIES,
@@ -17,6 +16,7 @@ import { AdSenseContentStructure } from './components/AdSenseContentStructure';
 import {
   LoanEmiCalculator,
   CompoundInterestCalculator,
+  SipRetirementCalculator,
 } from './components/calculators/FinanceCalculators';
 import {
   BmiCalculator,
@@ -27,9 +27,11 @@ import {
   DiscountTaxCalculator,
   AgeDateCalculator,
   WordCounterCalculator,
+  UnitConverterCalculator,
 } from './components/calculators/MathTextCalculators';
 import { LegalCompliancePages } from './components/LegalCompliancePages';
 import { SeoHeadManager } from './components/SeoHeadManager';
+import { PWAInstallButton, OfflineIndicator } from './components/PWAInstallButton';
 import { parsePathnameToRoute } from './utils/seoSitemap';
 import {
   SavedCalculationItem,
@@ -39,70 +41,32 @@ import {
   loadPinnedFavorites,
   savePinnedFavorites,
   sanitizeSingleLineInput,
+  CurrencyCode,
+  CURRENCY_OPTIONS,
+  loadPreferredCurrency,
+  savePreferredCurrency,
+  wipeAllLocalData,
+  getSecurityAuditStatus,
+  installAntiInspectProtection,
 } from './utils/security';
-import { Search, Sun, Moon, ChevronDown, Menu, X, Lock } from 'lucide-react';
+import {
+  Search,
+  Sun,
+  Moon,
+  ChevronDown,
+  Menu,
+  X,
+  Lock,
+  ShieldCheck,
+  Trash2,
+  CheckCircle2,
+  Calculator,
+} from 'lucide-react';
 
 type ActiveRoute =
   | { view: 'home' }
   | { view: 'calculator'; id: CalculatorId }
   | { view: 'legal'; page: LegalPageId };
-
-const navListVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.055,
-      delayChildren: 0.06,
-    },
-  },
-};
-
-const navItemVariants: Variants = {
-  hidden: { opacity: 0, y: -10, filter: 'blur(4px)' },
-  visible: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: {
-      type: 'spring',
-      stiffness: 380,
-      damping: 28,
-    },
-  },
-};
-
-const dropdownMenuVariants: Variants = {
-  hidden: { opacity: 0, y: 10, scale: 0.96, filter: 'blur(6px)' },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    filter: 'blur(0px)',
-    transition: {
-      type: 'spring',
-      stiffness: 420,
-      damping: 30,
-      staggerChildren: 0.04,
-    },
-  },
-  exit: {
-    opacity: 0,
-    y: 6,
-    scale: 0.97,
-    filter: 'blur(4px)',
-    transition: { duration: 0.14, ease: [0.32, 0.72, 0, 1] },
-  },
-};
-
-const dropdownItemVariants: Variants = {
-  hidden: { opacity: 0, x: -6 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { type: 'spring', stiffness: 360, damping: 28 },
-  },
-};
 
 export default function App() {
   const [route, setRoute] = useState<ActiveRoute>(() => {
@@ -124,12 +88,16 @@ export default function App() {
 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('omnicalc-theme') === 'dark';
+      const saved = localStorage.getItem('omnicalc-theme');
+      if (saved === 'light') return false;
+      if (saved === 'dark') return true;
     }
-    return false;
+    return true;
   });
 
-  // Retention features: Pinned Quick-Launch Dock & On-Device Saved Calculations
+  const [currency, setCurrency] = useState<CurrencyCode>(() => loadPreferredCurrency());
+
+  // Retention features: Pinned Calculators & On-Device Saved Results
   const [pinnedIds, setPinnedIds] = useState<CalculatorId[]>(
     () => loadPinnedFavorites() as CalculatorId[]
   );
@@ -137,15 +105,20 @@ export default function App() {
     loadSavedCalculations()
   );
 
-  // Header Category Dropdown & Search Bar states
+  // Header Category Dropdown, Privacy Popover & Search Bar states
   const [categoryMenuOpen, setCategoryMenuOpen] = useState<boolean>(false);
+  const [securityPanelOpen, setSecurityPanelOpen] = useState<boolean>(false);
+  const [wipeConfirmedToast, setWipeConfirmedToast] = useState<boolean>(false);
+  const [inspectBlockedAlert, setInspectBlockedAlert] = useState<string | null>(null);
   const [headerSearch, setHeaderSearch] = useState<string>('');
   const [searchDropdownOpen, setSearchDropdownOpen] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const securityRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const inspectToastTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -175,6 +148,25 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Chrome Inspect, Context-Menu & View-Source Protection
+  useEffect(() => {
+    const cleanup = installAntiInspectProtection((reason) => {
+      setInspectBlockedAlert(reason);
+      if (inspectToastTimeoutRef.current) {
+        window.clearTimeout(inspectToastTimeoutRef.current);
+      }
+      inspectToastTimeoutRef.current = window.setTimeout(() => {
+        setInspectBlockedAlert(null);
+      }, 2800);
+    });
+    return () => {
+      cleanup();
+      if (inspectToastTimeoutRef.current) {
+        window.clearTimeout(inspectToastTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Keyboard shortcut: Cmd+K / Ctrl+K focuses header quick search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -185,6 +177,7 @@ export default function App() {
       } else if (e.key === 'Escape') {
         setSearchDropdownOpen(false);
         setCategoryMenuOpen(false);
+        setSecurityPanelOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -197,6 +190,9 @@ export default function App() {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setCategoryMenuOpen(false);
       }
+      if (securityRef.current && !securityRef.current.contains(e.target as Node)) {
+        setSecurityPanelOpen(false);
+      }
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setSearchDropdownOpen(false);
       }
@@ -204,6 +200,11 @@ export default function App() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleCurrencyChange = (nextCurrency: CurrencyCode) => {
+    setCurrency(nextCurrency);
+    savePreferredCurrency(nextCurrency);
+  };
 
   const handleTogglePin = (id: CalculatorId) => {
     setPinnedIds((prev) => {
@@ -221,6 +222,15 @@ export default function App() {
   const handleClearHistory = () => {
     clearSavedCalculations();
     setSavedHistory([]);
+  };
+
+  const handlePanicWipeAllData = () => {
+    wipeAllLocalData();
+    setSavedHistory([]);
+    setPinnedIds(['loan-emi', 'compound-interest', 'bmi', 'percentage']);
+    setCurrency('USD');
+    setWipeConfirmedToast(true);
+    setTimeout(() => setWipeConfirmedToast(false), 2000);
   };
 
   const pushUrlPath = (nextPath: string) => {
@@ -244,6 +254,7 @@ export default function App() {
     pushUrlPath(`/legal/${page}`);
     setCategoryMenuOpen(false);
     setMobileMenuOpen(false);
+    setSecurityPanelOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -271,9 +282,11 @@ export default function App() {
   const renderCalculatorById = (id: CalculatorId) => {
     switch (id) {
       case 'loan-emi':
-        return <LoanEmiCalculator onSaveCalculation={handleSaveCalculation} />;
+        return <LoanEmiCalculator currency={currency} onSaveCalculation={handleSaveCalculation} />;
       case 'compound-interest':
-        return <CompoundInterestCalculator onSaveCalculation={handleSaveCalculation} />;
+        return <CompoundInterestCalculator currency={currency} onSaveCalculation={handleSaveCalculation} />;
+      case 'sip-retirement':
+        return <SipRetirementCalculator currency={currency} onSaveCalculation={handleSaveCalculation} />;
       case 'bmi':
         return <BmiCalculator onSaveCalculation={handleSaveCalculation} />;
       case 'tdee':
@@ -281,9 +294,11 @@ export default function App() {
       case 'percentage':
         return <PercentageCalculator onSaveCalculation={handleSaveCalculation} />;
       case 'discount-tax':
-        return <DiscountTaxCalculator onSaveCalculation={handleSaveCalculation} />;
+        return <DiscountTaxCalculator currency={currency} onSaveCalculation={handleSaveCalculation} />;
       case 'age-date':
         return <AgeDateCalculator onSaveCalculation={handleSaveCalculation} />;
+      case 'unit-converter':
+        return <UnitConverterCalculator onSaveCalculation={handleSaveCalculation} />;
       case 'word-counter':
         return <WordCounterCalculator onSaveCalculation={handleSaveCalculation} />;
     }
@@ -294,154 +309,121 @@ export default function App() {
       ? CALCULATOR_CATALOG.find((c) => c.id === route.id)
       : undefined;
 
-  const activeNavCategory: CalculatorCategory | null =
+  const activeNavCategory: CalculatorCategory | 'All' =
     route.view === 'calculator' && activeCalculatorMeta
       ? activeCalculatorMeta.category
-      : route.view === 'home' && categoryFilter !== 'All'
-      ? categoryFilter
-      : null;
+      : categoryFilter;
 
-  const headerCategories: CalculatorCategory[] = ['Finance', 'Health', 'Math', 'Text'];
+  const auditChecks = getSecurityAuditStatus();
 
   return (
-    <div className="min-h-screen flex flex-col liquid-canvas text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen flex flex-col liquid-canvas overflow-x-hidden text-slate-900 dark:text-slate-100 transition-colors">
       <SeoHeadManager route={route} categoryFilter={categoryFilter} />
+      <OfflineIndicator />
 
-      {/* TOP NAVIGATION HEADER (LIQUID GLASS WITH APPLE-LIKE SPRING ENTRANCE) */}
-      <motion.header
-        initial={{ opacity: 0, y: -14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-        className="sticky top-0 z-30 liquid-glass-nav"
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-8 px-4 sm:px-6 lg:px-8 h-16">
+      {/* TOP NAVIGATION HEADER */}
+      <header className="sticky top-0 z-30 liquid-glass-nav">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4 px-4 sm:px-6 lg:px-8 h-14">
           {/* Zone 1: Brand Wordmark */}
-          <motion.button
-            type="button"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigateHome('All')}
-            className="text-xl font-bold tracking-tight text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            OmniCalc
-          </motion.button>
-
-          {/* Zone 2: Category Dropdown & Direct Category Links + Quick Search Bar */}
-          <div className="hidden md:flex items-center gap-6 flex-1 max-w-2xl justify-center">
-            <motion.nav
-              aria-label="Main Navigation"
-              variants={navListVariants}
-              initial="hidden"
-              animate="visible"
-              className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300"
+          <div className="flex items-center shrink-0">
+            <button
+              type="button"
+              onClick={() => navigateHome('All')}
+              className="inline-flex items-center gap-2 text-base font-bold tracking-tight text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
-              {/* Category Dropdown */}
-              <motion.div ref={dropdownRef} variants={navItemVariants} className="relative">
-                <motion.button
+              <Calculator className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>OmniCalc</span>
+            </button>
+          </div>
+
+          {/* Zone 2: Category Navigation + Quick Search (Desktop lg+) */}
+          <div className="hidden lg:flex items-center gap-3 xl:gap-4 flex-1 justify-center min-w-0">
+            <nav
+              aria-label="Main Navigation"
+              className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400"
+            >
+              {/* All Tools Popover */}
+              <div ref={dropdownRef} className="relative">
+                <button
                   type="button"
                   aria-expanded={categoryMenuOpen}
-                  whileHover={{ y: -1 }}
-                  whileTap={{ scale: 0.97 }}
                   onClick={() => setCategoryMenuOpen((prev) => !prev)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                  <span>Categories</span>
+                  <span>All Tools</span>
                   <ChevronDown
-                    className={`w-4 h-4 transition-transform duration-200 ${
-                      categoryMenuOpen ? 'rotate-180 text-indigo-600' : ''
+                    className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                      categoryMenuOpen ? 'rotate-180 text-emerald-500' : ''
                     }`}
                   />
-                </motion.button>
+                </button>
 
-                <AnimatePresence>
-                  {categoryMenuOpen && (
-                    <motion.div
-                      variants={dropdownMenuVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                      className="absolute left-0 mt-2 w-72 rounded-2xl liquid-glass p-2 z-40 origin-top-left"
-                    >
-                      {CATEGORIES.map((cat) => {
-                        const catTools = CALCULATOR_CATALOG.filter(
-                          (c) => c.category === cat.id
-                        );
-                        return (
-                          <motion.div
-                            key={cat.id}
-                            variants={dropdownItemVariants}
-                            className="p-2 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition-colors"
+                {categoryMenuOpen && (
+                  <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl p-2 z-50">
+                    {CATEGORIES.map((cat) => {
+                      const catTools = CALCULATOR_CATALOG.filter(
+                        (c) => c.category === cat.id
+                      );
+                      return (
+                        <div
+                          key={cat.id}
+                          className="p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/70"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => navigateHome(cat.id)}
+                            className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer block mb-1"
                           >
-                            <button
-                              type="button"
-                              onClick={() => navigateHome(cat.id)}
-                              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer block mb-1"
-                            >
-                              {cat.name}
-                            </button>
-                            <div className="space-y-1">
-                              {catTools.map((tool) => (
-                                <motion.button
-                                  key={tool.id}
-                                  type="button"
-                                  whileHover={{ x: 3 }}
-                                  transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                                  onClick={() => navigateToCalculator(tool.id)}
-                                  className="block w-full text-left text-xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 py-0.5 cursor-pointer truncate"
-                                >
-                                  {tool.shortTitle}
-                                </motion.button>
-                              ))}
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+                            {cat.name}
+                          </button>
+                          <div className="space-y-1">
+                            {catTools.map((tool) => (
+                              <button
+                                key={tool.id}
+                                type="button"
+                                onClick={() => navigateToCalculator(tool.id)}
+                                className="block w-full text-left text-xs text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 py-0.5 cursor-pointer truncate"
+                              >
+                                {tool.shortTitle}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-              {headerCategories.map((cat) => {
-                const isActive = activeNavCategory === cat;
+              {(
+                [
+                  { id: 'Finance' as const, label: 'Money & Loans' },
+                  { id: 'Health' as const, label: 'Health' },
+                  { id: 'Math' as const, label: 'Math' },
+                  { id: 'Text' as const, label: 'Writing' },
+                ] as const
+              ).map((item) => {
+                const isActive = activeNavCategory === item.id;
                 return (
-                  <motion.button
-                    key={cat}
+                  <button
+                    key={item.id}
                     type="button"
-                    variants={navItemVariants}
-                    whileHover={{ y: -1.5 }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={() => navigateHome(cat)}
-                    className={`relative px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    onClick={() => navigateHome(item.id)}
+                    className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                       isActive
-                        ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                        : 'hover:text-slate-900 dark:hover:text-white'
+                        ? 'bg-slate-200/80 dark:bg-slate-800/90 text-slate-900 dark:text-white font-semibold shadow-2xs'
+                        : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/40 dark:hover:bg-slate-800/40'
                     }`}
                   >
-                    {isActive && (
-                      <motion.span
-                        layoutId="headerNavActivePill"
-                        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                        className="absolute inset-0 rounded-xl bg-indigo-500/10 dark:bg-indigo-400/15 border border-indigo-500/20 dark:border-indigo-400/25 -z-10"
-                      />
-                    )}
-                    <span>{cat}</span>
-                  </motion.button>
+                    {item.label}
+                  </button>
                 );
               })}
-            </motion.nav>
+            </nav>
 
-            {/* Header Search Bar with ⌘K support */}
-            <motion.div
-              ref={searchRef}
-              initial={{ opacity: 0, y: -8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 28, delay: 0.22 }}
-              className="relative flex-1 max-w-xs"
-            >
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            {/* Quick Search Bar with ⌘K badge */}
+            <div ref={searchRef} className="relative w-44 xl:w-56">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 ref={searchInputRef}
                 type="search"
@@ -452,218 +434,346 @@ export default function App() {
                   setHeaderSearch(sanitizeSingleLineInput(e.target.value, 80));
                   setSearchDropdownOpen(true);
                 }}
-                placeholder="Find tool (⌘K)..."
-                className="w-full rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-900/75 pl-9 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 transition-shadow"
+                placeholder="Search tools..."
+                className="w-full rounded-xl liquid-well pl-8 pr-11 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
+              <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400 bg-slate-200/60 dark:bg-slate-800/80 px-1.5 py-0.5 rounded">
+                ⌘K
+              </kbd>
 
-              <AnimatePresence>
-                {searchDropdownOpen && headerSearch.trim() !== '' && (
-                  <motion.div
-                    variants={dropdownMenuVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    className="absolute right-0 left-0 mt-2 rounded-2xl liquid-glass py-1.5 z-40 max-h-72 overflow-y-auto origin-top"
-                  >
-                    {headerSearchResults.length > 0 ? (
-                      headerSearchResults.map((item) => (
-                        <motion.button
-                          key={item.id}
-                          type="button"
-                          variants={dropdownItemVariants}
-                          whileHover={{ x: 3 }}
-                          onClick={() => navigateToCalculator(item.id)}
-                          className="w-full px-3.5 py-2 text-left hover:bg-slate-100/70 dark:hover:bg-slate-800/70 flex items-center justify-between gap-2 cursor-pointer"
-                        >
-                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
-                            {item.shortTitle}
-                          </span>
-                          <span className="text-[11px] text-slate-400 shrink-0">
-                            {item.category}
-                          </span>
-                        </motion.button>
-                      ))
-                    ) : (
-                      <div className="px-3.5 py-2 text-xs text-slate-500">
-                        No matching tools found
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
+              {searchDropdownOpen && headerSearch.trim() !== '' && (
+                <div className="absolute right-0 left-0 mt-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl py-1.5 z-50 max-h-72 overflow-y-auto">
+                  {headerSearchResults.length > 0 ? (
+                    headerSearchResults.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => navigateToCalculator(item.id)}
+                        className="w-full px-3.5 py-2 text-left hover:bg-slate-100/80 dark:hover:bg-slate-800/70 flex items-center justify-between gap-2 cursor-pointer"
+                      >
+                        <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                          {item.shortTitle}
+                        </span>
+                        <span className="text-[11px] text-slate-400 shrink-0">
+                          {item.category}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3.5 py-2 text-xs text-slate-500">
+                      No matching tools found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Zone 3: Dark/Light Mode Toggle & Mobile Menu Trigger */}
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ type: 'spring', stiffness: 360, damping: 28, delay: 0.18 }}
-            className="flex items-center gap-2 shrink-0"
-          >
-            <motion.button
+          {/* Zone 3: Currency Selector, Privacy & Data Popover, PWA Install, Theme Toggle & Mobile/Tablet Menu */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Inline Quick Currency Buttons (XL screens) */}
+            <div className="hidden xl:flex items-center gap-0.5 p-0.5 rounded-xl liquid-well">
+              {(['USD', 'EUR', 'GBP', 'INR'] as CurrencyCode[]).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => handleCurrencyChange(code)}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-mono font-semibold transition-colors cursor-pointer ${
+                    currency === code
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {code}
+                </button>
+              ))}
+            </div>
+
+            <select
+              aria-label="Select Preferred Currency"
+              value={currency}
+              onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
+              className="rounded-xl liquid-well px-2 sm:px-2.5 py-1.5 text-xs font-mono font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            >
+              {CURRENCY_OPTIONS.map((opt) => (
+                <option key={opt.code} value={opt.code}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Privacy & Data Popover */}
+            <div ref={securityRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setSecurityPanelOpen((prev) => !prev)}
+                aria-expanded={securityPanelOpen}
+                aria-label="Open Privacy and Security Settings"
+                title="Privacy settings & clear local data"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl liquid-well text-slate-700 dark:text-slate-200 text-xs font-semibold hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden sm:inline">Privacy</span>
+              </button>
+
+              {securityPanelOpen && (
+                <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 rounded-2xl bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/90 p-4 z-50 space-y-3 shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                        Privacy &amp; On-Device Security
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                      100% Local
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {auditChecks.map((check) => (
+                      <div key={check.id} className="flex items-start gap-2 text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-semibold text-slate-800 dark:text-slate-200">
+                            {check.label}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {check.detail}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-2.5 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePanicWipeAllData}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>
+                        {wipeConfirmedToast ? 'Saved Data Cleared' : 'Clear All Saved Data'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => navigateToLegal('privacy')}
+                      className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                    >
+                      Privacy Policy →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <PWAInstallButton />
+
+            <button
               type="button"
-              whileHover={{ scale: 1.03, y: -1 }}
-              whileTap={{ scale: 0.96 }}
               aria-label={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               onClick={() => setDarkMode((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white/75 dark:bg-slate-800/75 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl liquid-well text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               {darkMode ? (
                 <>
-                  <Sun className="w-4 h-4 text-amber-400" />
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
                   <span className="hidden sm:inline">Light</span>
                 </>
               ) : (
                 <>
-                  <Moon className="w-4 h-4 text-indigo-600" />
+                  <Moon className="w-3.5 h-3.5 text-slate-700" />
                   <span className="hidden sm:inline">Dark</span>
                 </>
               )}
-            </motion.button>
+            </button>
 
-            <motion.button
+            <button
               type="button"
-              whileTap={{ scale: 0.94 }}
               aria-label="Toggle Mobile Navigation"
+              aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="md:hidden p-2 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 cursor-pointer"
+              className="lg:hidden p-2 rounded-xl liquid-well text-slate-700 dark:text-slate-200 cursor-pointer"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </motion.button>
-          </motion.div>
+            </button>
+          </div>
         </div>
 
-        {/* Mobile Drawer with AnimatePresence */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              className="md:hidden border-t border-slate-200/70 dark:border-slate-800/70 bg-white/95 dark:bg-slate-900/95 px-4 py-4 space-y-4 overflow-hidden"
-            >
-              <motion.div
-                variants={navListVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-2 gap-2"
-              >
-                {CALCULATOR_CATALOG.map((calc) => (
-                  <motion.button
+        {/* Mobile & Tablet Navigation Drawer (Search + Category Filter + All 10 Calculators + Legal Links) */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-slate-200/70 dark:border-slate-800/70 bg-white/98 dark:bg-slate-900/98 px-4 py-4 space-y-4 shadow-xl">
+            {/* Instant Drawer Search */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="search"
+                aria-label="Search calculators in menu"
+                value={headerSearch}
+                onChange={(e) => setHeaderSearch(sanitizeSingleLineInput(e.target.value, 80))}
+                placeholder="Search any calculator..."
+                className="w-full rounded-xl liquid-well pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            {/* Category Quick Filter Row */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { id: 'All' as const, label: 'All Tools' },
+                  { id: 'Finance' as const, label: 'Money & Loans' },
+                  { id: 'Health' as const, label: 'Health' },
+                  { id: 'Math' as const, label: 'Math' },
+                  { id: 'Text' as const, label: 'Writing' },
+                ] as const
+              ).map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => navigateHome(cat.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    activeNavCategory === cat.id
+                      ? 'bg-emerald-500 text-slate-950 font-bold'
+                      : 'liquid-well text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 10 Calculators Grid (Filtered by Search if typing) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {(headerSearch.trim() ? headerSearchResults : CALCULATOR_CATALOG).map((calc) => {
+                const isCurrent = route.view === 'calculator' && route.id === calc.id;
+                return (
+                  <button
                     key={calc.id}
                     type="button"
-                    variants={navItemVariants}
-                    whileTap={{ scale: 0.97 }}
                     onClick={() => navigateToCalculator(calc.id)}
-                    className="text-left p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:border-indigo-500 cursor-pointer"
+                    className={`text-left p-2.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
+                      isCurrent
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                        : 'border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 hover:border-emerald-500'
+                    }`}
                   >
                     <div className="text-[10px] text-slate-400">{calc.category}</div>
                     <div className="truncate">{calc.shortTitle}</div>
-                  </motion.button>
-                ))}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.header>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Footer Links in Drawer */}
+            <div className="pt-2 border-t border-slate-200/70 dark:border-slate-800/70 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigateToLegal('privacy')}
+                  className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
+                >
+                  Privacy Policy
+                </button>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={() => navigateToLegal('about')}
+                  className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
+                >
+                  About &amp; Sitemap
+                </button>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={() => navigateToLegal('contact')}
+                  className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
+                >
+                  Contact Us
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
 
       {/* MAIN CONTENT VIEWPORT */}
+      {inspectBlockedAlert && (
+        <div
+          role="status"
+          data-testid="inspect-blocked-toast"
+          className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-2xl bg-slate-900/95 dark:bg-slate-800/95 text-white px-4 py-3 text-xs font-semibold shadow-2xl border border-emerald-500/40"
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{inspectBlockedAlert}</span>
+        </div>
+      )}
+
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <AnimatePresence mode="wait">
-          {route.view === 'home' && (
-            <motion.div
-              key={`home-${categoryFilter}`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <HomeView
-                selectedCategoryFilter={categoryFilter}
-                onSelectCategoryFilter={(cat) => navigateHome(cat)}
-                onSelectCalculator={navigateToCalculator}
-                onSelectLegalPage={navigateToLegal}
-                pinnedIds={pinnedIds}
-                onTogglePin={handleTogglePin}
-                savedHistory={savedHistory}
-                onClearHistory={handleClearHistory}
-              />
-            </motion.div>
-          )}
+        {route.view === 'home' && (
+          <HomeView
+            selectedCategoryFilter={categoryFilter}
+            onSelectCategoryFilter={(cat) => navigateHome(cat)}
+            onSelectCalculator={navigateToCalculator}
+            onSelectLegalPage={navigateToLegal}
+            pinnedIds={pinnedIds}
+            onTogglePin={handleTogglePin}
+            savedHistory={savedHistory}
+            onClearHistory={handleClearHistory}
+          />
+        )}
 
-          {route.view === 'calculator' && activeCalculatorMeta && (
-            <motion.div
-              key={`calc-${activeCalculatorMeta.id}`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <AdSenseContentStructure
-                meta={activeCalculatorMeta}
-                onSelectCalculator={navigateToCalculator}
-                onNavigateHome={() => navigateHome('All')}
-                isPinned={pinnedIds.includes(activeCalculatorMeta.id)}
-                onTogglePin={handleTogglePin}
-              >
-                {renderCalculatorById(activeCalculatorMeta.id)}
-              </AdSenseContentStructure>
-            </motion.div>
-          )}
+        {route.view === 'calculator' && activeCalculatorMeta && (
+          <AdSenseContentStructure
+            meta={activeCalculatorMeta}
+            onSelectCalculator={navigateToCalculator}
+            onNavigateHome={() => navigateHome('All')}
+            isPinned={pinnedIds.includes(activeCalculatorMeta.id)}
+            onTogglePin={handleTogglePin}
+          >
+            {renderCalculatorById(activeCalculatorMeta.id)}
+          </AdSenseContentStructure>
+        )}
 
-          {route.view === 'legal' && (
-            <motion.div
-              key={`legal-${route.page}`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <LegalCompliancePages
-                activePage={route.page}
-                onSelectLegalPage={navigateToLegal}
-                onSelectCalculator={navigateToCalculator}
-                onNavigateHome={(cat) => navigateHome(cat ?? 'All')}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {route.view === 'legal' && (
+          <LegalCompliancePages
+            activePage={route.page}
+            onSelectLegalPage={navigateToLegal}
+            onSelectCalculator={navigateToCalculator}
+            onNavigateHome={(cat) => navigateHome(cat ?? 'All')}
+          />
+        )}
       </main>
 
-      {/* FOOTER WITH FULL CALCULATOR DIRECTORY & ADSENSE COMPLIANCE LINKS */}
-      <motion.footer
-        initial={{ opacity: 0, y: 16 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.15 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="border-t border-slate-200/70 dark:border-slate-800/70 liquid-glass mt-16"
-      >
+      {/* FOOTER WITH FULL 10-CALCULATOR DIRECTORY & LEGAL LINKS */}
+      <footer className="border-t border-slate-200/70 dark:border-slate-800/70 liquid-glass mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
             <div className="md:col-span-4 space-y-3">
-              <div className="text-lg font-bold text-slate-900 dark:text-white">
-                OmniCalc
+              <div className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
+                <Calculator className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>OmniCalc</span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-sm">
-                Precision online calculators for Finance, Health, Everyday Math, and Text analysis. All tools execute 100% locally in your browser with transparent formulas and step-by-step worked examples.
+                Free, easy-to-use calculators for money, health, math, and writing. Every tool runs privately in your browser with clear formulas, step-by-step examples, and offline support.
               </p>
               <div className="pt-1 flex items-center gap-3 text-xs">
                 <a
                   href="/sitemap.xml"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                  className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
                 >
-                  XML Sitemap (/sitemap.xml)
+                  Sitemap (/sitemap.xml)
                 </a>
                 <span aria-hidden="true" className="text-slate-400">·</span>
                 <a
                   href="/robots.txt"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                  className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
                 >
                   robots.txt
                 </a>
@@ -673,96 +783,106 @@ export default function App() {
             <div className="md:col-span-5 grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="text-xs font-bold text-slate-900 dark:text-white">
-                  Finance &amp; Health
+                  Money &amp; Health
                 </div>
                 <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
                   <li>
-                    <motion.button
+                    <button
                       type="button"
-                      whileHover={{ x: 3 }}
                       onClick={() => navigateToCalculator('loan-emi')}
-                      className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
-                      Loan EMI &amp; Mortgage
-                    </motion.button>
+                      Loan &amp; Mortgage Calculator
+                    </button>
                   </li>
                   <li>
-                    <motion.button
+                    <button
                       type="button"
-                      whileHover={{ x: 3 }}
                       onClick={() => navigateToCalculator('compound-interest')}
-                      className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
-                      Compound Interest
-                    </motion.button>
+                      Compound Interest Calculator
+                    </button>
                   </li>
                   <li>
-                    <motion.button
+                    <button
                       type="button"
-                      whileHover={{ x: 3 }}
+                      onClick={() => navigateToCalculator('sip-retirement')}
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
+                    >
+                      Retirement &amp; SIP Savings
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
                       onClick={() => navigateToCalculator('bmi')}
-                      className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
-                      BMI Health Gauge
-                    </motion.button>
+                      BMI Calculator
+                    </button>
                   </li>
                   <li>
-                    <motion.button
+                    <button
                       type="button"
-                      whileHover={{ x: 3 }}
                       onClick={() => navigateToCalculator('tdee')}
-                      className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
-                      TDEE &amp; Calorie Deficit
-                    </motion.button>
+                      Daily Calorie &amp; TDEE Calculator
+                    </button>
                   </li>
                 </ul>
               </div>
 
               <div className="space-y-2">
                 <div className="text-xs font-bold text-slate-900 dark:text-white">
-                  Math &amp; Text Utilities
+                  Math &amp; Writing
                 </div>
                 <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
                   <li>
-                    <motion.button
+                    <button
                       type="button"
-                      whileHover={{ x: 3 }}
                       onClick={() => navigateToCalculator('percentage')}
-                      className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
-                      3-in-1 Percentage
-                    </motion.button>
+                      Percentage Calculator
+                    </button>
                   </li>
                   <li>
-                    <motion.button
+                    <button
                       type="button"
-                      whileHover={{ x: 3 }}
                       onClick={() => navigateToCalculator('discount-tax')}
-                      className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
                       Discount &amp; Sales Tax
-                    </motion.button>
+                    </button>
                   </li>
                   <li>
-                    <motion.button
+                    <button
                       type="button"
-                      whileHover={{ x: 3 }}
                       onClick={() => navigateToCalculator('age-date')}
-                      className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
-                      Age &amp; Date Difference
-                    </motion.button>
+                      Age &amp; Date Calculator
+                    </button>
                   </li>
                   <li>
-                    <motion.button
+                    <button
                       type="button"
-                      whileHover={{ x: 3 }}
-                      onClick={() => navigateToCalculator('word-counter')}
-                      className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                      onClick={() => navigateToCalculator('unit-converter')}
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
-                      Word &amp; Reading Counter
-                    </motion.button>
+                      Unit Converter
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigateToCalculator('word-counter')}
+                      className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
+                    >
+                      Word &amp; Character Counter
+                    </button>
                   </li>
                 </ul>
               </div>
@@ -770,58 +890,53 @@ export default function App() {
 
             <div className="md:col-span-3 space-y-2">
               <div className="text-xs font-bold text-slate-900 dark:text-white">
-                Legal &amp; AdSense Compliance
+                About &amp; Legal
               </div>
               <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
                 <li>
-                  <motion.button
+                  <button
                     type="button"
-                    whileHover={{ x: 3 }}
                     onClick={() => navigateToLegal('privacy')}
-                    className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                    className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                   >
                     Privacy Policy &amp; Cookies
-                  </motion.button>
+                  </button>
                 </li>
                 <li>
-                  <motion.button
+                  <button
                     type="button"
-                    whileHover={{ x: 3 }}
                     onClick={() => navigateToLegal('terms')}
-                    className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                    className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                   >
                     Terms of Service
-                  </motion.button>
+                  </button>
                 </li>
                 <li>
-                  <motion.button
+                  <button
                     type="button"
-                    whileHover={{ x: 3 }}
                     onClick={() => navigateToLegal('disclaimer')}
-                    className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                    className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                   >
                     Financial &amp; Health Disclaimer
-                  </motion.button>
+                  </button>
                 </li>
                 <li>
-                  <motion.button
+                  <button
                     type="button"
-                    whileHover={{ x: 3 }}
                     onClick={() => navigateToLegal('about')}
-                    className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                    className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                   >
-                    About, Security &amp; SEO Sitemap
-                  </motion.button>
+                    About OmniCalc
+                  </button>
                 </li>
                 <li>
-                  <motion.button
+                  <button
                     type="button"
-                    whileHover={{ x: 3 }}
                     onClick={() => navigateToLegal('contact')}
-                    className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                    className="hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                   >
                     Contact Us
-                  </motion.button>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -829,15 +944,15 @@ export default function App() {
 
           <div className="pt-6 border-t border-slate-200/70 dark:border-slate-800/70 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
             <div>
-              © {new Date().getFullYear()} OmniCalc Portal. Built for informational &amp; educational reference.
+              © {new Date().getFullYear()} OmniCalc. For general informational and educational use.
             </div>
             <div className="flex items-center gap-2">
               <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>100% Client-Side Encrypted Execution · Zero Data Tracking</span>
+              <span>100% Private · Runs in your browser · No tracking</span>
             </div>
           </div>
         </div>
-      </motion.footer>
+      </footer>
     </div>
   );
 }

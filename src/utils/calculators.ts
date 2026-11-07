@@ -567,3 +567,337 @@ export function analyzeTextContent(text: string): TextCounterResult {
     topKeywords,
   };
 }
+
+export interface SipRetirementResult {
+  nominalCorpus: number;
+  inflationAdjustedCorpus: number;
+  totalInvested: number;
+  nominalWealthGained: number;
+  safeMonthlyWithdrawalNominal: number;
+  safeMonthlyWithdrawalReal: number;
+  yearlySchedule: Array<{
+    year: number;
+    monthlySipThatYear: number;
+    totalInvested: number;
+    nominalCorpus: number;
+    realCorpus: number;
+  }>;
+}
+
+/**
+ * 9. Finance: SIP & Retirement / FIRE Corpus Calculator
+ * Supports annual step-up percentage, expected annual return, and inflation adjustment,
+ * plus 4% Safe Withdrawal Rate (SWR) monthly retirement income projection.
+ */
+export function calculateSipRetirement(
+  monthlySip: number,
+  annualStepUpPercent: number,
+  expectedReturnPercent: number,
+  inflationPercent: number,
+  tenureYears: number
+): SipRetirementResult {
+  const safeMonthlySip = Math.max(0, Number.isFinite(monthlySip) ? monthlySip : 0);
+  const safeStepUp = Math.max(0, Math.min(50, Number.isFinite(annualStepUpPercent) ? annualStepUpPercent : 0));
+  const safeReturn = Math.max(0, Math.min(40, Number.isFinite(expectedReturnPercent) ? expectedReturnPercent : 0));
+  const safeInflation = Math.max(0, Math.min(25, Number.isFinite(inflationPercent) ? inflationPercent : 0));
+  const safeYears = Math.max(1, Math.min(60, Math.round(Number.isFinite(tenureYears) ? tenureYears : 1)));
+
+  const monthlyRate = safeReturn / 12 / 100;
+  let currentSip = safeMonthlySip;
+  let totalInvested = 0;
+  let nominalCorpus = 0;
+  const yearlySchedule: SipRetirementResult['yearlySchedule'] = [];
+
+  for (let year = 1; year <= safeYears; year++) {
+    for (let month = 1; month <= 12; month++) {
+      // Beginning-of-month SIP contribution compounds through the month
+      nominalCorpus = (nominalCorpus + currentSip) * (1 + monthlyRate);
+      totalInvested += currentSip;
+    }
+
+    const inflationDiscountFactor = Math.pow(1 + safeInflation / 100, year);
+    const realCorpus = nominalCorpus / inflationDiscountFactor;
+
+    yearlySchedule.push({
+      year,
+      monthlySipThatYear: currentSip,
+      totalInvested,
+      nominalCorpus,
+      realCorpus,
+    });
+
+    currentSip = currentSip * (1 + safeStepUp / 100);
+  }
+
+  const finalDiscountFactor = Math.pow(1 + safeInflation / 100, safeYears);
+  const inflationAdjustedCorpus = nominalCorpus / finalDiscountFactor;
+  const nominalWealthGained = Math.max(0, nominalCorpus - totalInvested);
+
+  // 4% Safe Withdrawal Rate (Trinity Study benchmark) divided by 12 months
+  const safeMonthlyWithdrawalNominal = (nominalCorpus * 0.04) / 12;
+  const safeMonthlyWithdrawalReal = (inflationAdjustedCorpus * 0.04) / 12;
+
+  return {
+    nominalCorpus,
+    inflationAdjustedCorpus,
+    totalInvested,
+    nominalWealthGained,
+    safeMonthlyWithdrawalNominal,
+    safeMonthlyWithdrawalReal,
+    yearlySchedule,
+  };
+}
+
+export type UnitCategory = 'length' | 'weight' | 'temperature' | 'area' | 'volume' | 'speed';
+
+export interface UnitDefinition {
+  id: string;
+  label: string;
+  symbol: string;
+  toBaseFactor: number; // For linear units: value * toBaseFactor = base unit
+}
+
+export const UNIT_DEFINITIONS: Record<UnitCategory, UnitDefinition[]> = {
+  length: [
+    { id: 'm', label: 'Meters', symbol: 'm', toBaseFactor: 1 },
+    { id: 'km', label: 'Kilometers', symbol: 'km', toBaseFactor: 1000 },
+    { id: 'cm', label: 'Centimeters', symbol: 'cm', toBaseFactor: 0.01 },
+    { id: 'mm', label: 'Millimeters', symbol: 'mm', toBaseFactor: 0.001 },
+    { id: 'mi', label: 'Miles', symbol: 'mi', toBaseFactor: 1609.344 },
+    { id: 'yd', label: 'Yards', symbol: 'yd', toBaseFactor: 0.9144 },
+    { id: 'ft', label: 'Feet', symbol: 'ft', toBaseFactor: 0.3048 },
+    { id: 'in', label: 'Inches', symbol: 'in', toBaseFactor: 0.0254 },
+  ],
+  weight: [
+    { id: 'kg', label: 'Kilograms', symbol: 'kg', toBaseFactor: 1 },
+    { id: 'g', label: 'Grams', symbol: 'g', toBaseFactor: 0.001 },
+    { id: 'mg', label: 'Milligrams', symbol: 'mg', toBaseFactor: 0.000001 },
+    { id: 'lb', label: 'Pounds', symbol: 'lb', toBaseFactor: 0.45359237 },
+    { id: 'oz', label: 'Ounces', symbol: 'oz', toBaseFactor: 0.028349523125 },
+    { id: 'ton_metric', label: 'Metric Tonnes', symbol: 't', toBaseFactor: 1000 },
+  ],
+  temperature: [
+    { id: 'C', label: 'Celsius', symbol: '°C', toBaseFactor: 1 },
+    { id: 'F', label: 'Fahrenheit', symbol: '°F', toBaseFactor: 1 },
+    { id: 'K', label: 'Kelvin', symbol: 'K', toBaseFactor: 1 },
+  ],
+  area: [
+    { id: 'sqm', label: 'Square Meters', symbol: 'm²', toBaseFactor: 1 },
+    { id: 'sqkm', label: 'Square Kilometers', symbol: 'km²', toBaseFactor: 1_000_000 },
+    { id: 'sqft', label: 'Square Feet', symbol: 'ft²', toBaseFactor: 0.09290304 },
+    { id: 'sqyd', label: 'Square Yards', symbol: 'yd²', toBaseFactor: 0.83612736 },
+    { id: 'acre', label: 'Acres', symbol: 'ac', toBaseFactor: 4046.8564224 },
+    { id: 'hectare', label: 'Hectares', symbol: 'ha', toBaseFactor: 10000 },
+  ],
+  volume: [
+    { id: 'l', label: 'Liters', symbol: 'L', toBaseFactor: 1 },
+    { id: 'ml', label: 'Milliliters', symbol: 'mL', toBaseFactor: 0.001 },
+    { id: 'gal_us', label: 'US Gallons', symbol: 'gal', toBaseFactor: 3.785411784 },
+    { id: 'qt_us', label: 'US Quarts', symbol: 'qt', toBaseFactor: 0.946352946 },
+    { id: 'cup_us', label: 'US Cups', symbol: 'cup', toBaseFactor: 0.2365882365 },
+    { id: 'floz_us', label: 'US Fluid Ounces', symbol: 'fl oz', toBaseFactor: 0.02957352956 },
+    { id: 'cbm', label: 'Cubic Meters', symbol: 'm³', toBaseFactor: 1000 },
+  ],
+  speed: [
+    { id: 'mps', label: 'Meters per second', symbol: 'm/s', toBaseFactor: 1 },
+    { id: 'kmh', label: 'Kilometers per hour', symbol: 'km/h', toBaseFactor: 0.2777777778 },
+    { id: 'mph', label: 'Miles per hour', symbol: 'mph', toBaseFactor: 0.44704 },
+    { id: 'knot', label: 'Knots (Nautical)', symbol: 'kn', toBaseFactor: 0.5144444444 },
+  ],
+};
+
+export interface UnitConversionResult {
+  convertedValue: number;
+  formulaSummary: string;
+  allUnitsTable: Array<{
+    id: string;
+    label: string;
+    symbol: string;
+    value: number;
+  }>;
+}
+
+/**
+ * 10. Math: Universal 6-Category Unit Converter
+ */
+export function convertUnits(
+  category: UnitCategory,
+  inputValue: number,
+  fromUnitId: string,
+  toUnitId: string
+): UnitConversionResult {
+  const safeVal = Number.isFinite(inputValue) ? inputValue : 0;
+  const units = UNIT_DEFINITIONS[category] ?? UNIT_DEFINITIONS.length;
+  const fromUnit = units.find((u) => u.id === fromUnitId) ?? units[0];
+  const toUnit = units.find((u) => u.id === toUnitId) ?? units[1] ?? units[0];
+
+  if (category === 'temperature') {
+    const toCelsius = (val: number, unit: string): number => {
+      if (unit === 'F') return ((val - 32) * 5) / 9;
+      if (unit === 'K') return val - 273.15;
+      return val;
+    };
+    const fromCelsius = (celsius: number, unit: string): number => {
+      if (unit === 'F') return (celsius * 9) / 5 + 32;
+      if (unit === 'K') return celsius + 273.15;
+      return celsius;
+    };
+
+    const baseCelsius = toCelsius(safeVal, fromUnit.id);
+    const convertedValue = fromCelsius(baseCelsius, toUnit.id);
+
+    let formulaSummary = `${safeVal} ${fromUnit.symbol} = ${convertedValue.toFixed(2)} ${toUnit.symbol}`;
+    if (fromUnit.id === 'C' && toUnit.id === 'F') {
+      formulaSummary = `(${safeVal}°C × 9/5) + 32 = ${convertedValue.toFixed(2)}°F`;
+    } else if (fromUnit.id === 'F' && toUnit.id === 'C') {
+      formulaSummary = `(${safeVal}°F − 32) × 5/9 = ${convertedValue.toFixed(2)}°C`;
+    } else if (fromUnit.id === 'C' && toUnit.id === 'K') {
+      formulaSummary = `${safeVal}°C + 273.15 = ${convertedValue.toFixed(2)} K`;
+    }
+
+    const allUnitsTable = units.map((u) => ({
+      id: u.id,
+      label: u.label,
+      symbol: u.symbol,
+      value: fromCelsius(baseCelsius, u.id),
+    }));
+
+    return { convertedValue, formulaSummary, allUnitsTable };
+  }
+
+  const baseValue = safeVal * fromUnit.toBaseFactor;
+  const convertedValue = baseValue / toUnit.toBaseFactor;
+  const ratio = fromUnit.toBaseFactor / toUnit.toBaseFactor;
+  const formulaSummary = `1 ${fromUnit.symbol} = ${ Number(ratio.toPrecision(6)) } ${toUnit.symbol}`;
+
+  const allUnitsTable = units.map((u) => ({
+    id: u.id,
+    label: u.label,
+    symbol: u.symbol,
+    value: baseValue / u.toBaseFactor,
+  }));
+
+  return {
+    convertedValue,
+    formulaSummary,
+    allUnitsTable,
+  };
+}
+
+export interface LoanScenarioInput {
+  principal: number;
+  annualRatePercent: number;
+  tenureYears: number;
+}
+
+export interface LoanComparisonResult {
+  scenarioA: LoanEmiResult;
+  scenarioB: LoanEmiResult;
+  monthlyEmiDiff: number;
+  totalInterestDiff: number;
+  totalPaymentDiff: number;
+  tenureMonthsDiff: number;
+  interestSavings: number;
+  lowerInterestScenario: 'A' | 'B' | 'Equal';
+}
+
+/**
+ * Pure side-by-side comparison for two Loan EMI scenarios (e.g., comparing two interest rates or terms).
+ */
+export function compareLoanScenarios(
+  inputA: LoanScenarioInput,
+  inputB: LoanScenarioInput
+): LoanComparisonResult {
+  const scenarioA = calculateLoanEmi(inputA.principal, inputA.annualRatePercent, inputA.tenureYears);
+  const scenarioB = calculateLoanEmi(inputB.principal, inputB.annualRatePercent, inputB.tenureYears);
+
+  const monthlyEmiDiff = scenarioB.monthlyEmi - scenarioA.monthlyEmi;
+  const totalInterestDiff = scenarioB.totalInterest - scenarioA.totalInterest;
+  const totalPaymentDiff = scenarioB.totalPayment - scenarioA.totalPayment;
+  const tenureMonthsDiff = Math.round((inputB.tenureYears - inputA.tenureYears) * 12);
+  const interestSavings = Math.abs(totalInterestDiff);
+
+  let lowerInterestScenario: 'A' | 'B' | 'Equal' = 'Equal';
+  if (scenarioB.totalInterest < scenarioA.totalInterest - 0.01) {
+    lowerInterestScenario = 'B';
+  } else if (scenarioA.totalInterest < scenarioB.totalInterest - 0.01) {
+    lowerInterestScenario = 'A';
+  }
+
+  return {
+    scenarioA,
+    scenarioB,
+    monthlyEmiDiff,
+    totalInterestDiff,
+    totalPaymentDiff,
+    tenureMonthsDiff,
+    interestSavings,
+    lowerInterestScenario,
+  };
+}
+
+export interface CompoundScenarioInput {
+  initialPrincipal: number;
+  monthlyContribution: number;
+  annualRatePercent: number;
+  years: number;
+  compoundingFrequency?: number;
+}
+
+export interface CompoundComparisonResult {
+  scenarioA: CompoundInterestResult;
+  scenarioB: CompoundInterestResult;
+  futureValueDiff: number;
+  totalContributionsDiff: number;
+  totalInterestDiff: number;
+  effectiveApyDiff: number;
+  extraWealth: number;
+  higherBalanceScenario: 'A' | 'B' | 'Equal';
+}
+
+/**
+ * Pure side-by-side comparison for two Compound Interest scenarios (e.g., comparing two return rates or monthly deposits).
+ */
+export function compareCompoundScenarios(
+  inputA: CompoundScenarioInput,
+  inputB: CompoundScenarioInput
+): CompoundComparisonResult {
+  const scenarioA = calculateCompoundInterest(
+    inputA.initialPrincipal,
+    inputA.monthlyContribution,
+    inputA.annualRatePercent,
+    inputA.years,
+    inputA.compoundingFrequency ?? 12
+  );
+  const scenarioB = calculateCompoundInterest(
+    inputB.initialPrincipal,
+    inputB.monthlyContribution,
+    inputB.annualRatePercent,
+    inputB.years,
+    inputB.compoundingFrequency ?? 12
+  );
+
+  const futureValueDiff = scenarioB.futureValue - scenarioA.futureValue;
+  const totalContributionsDiff = scenarioB.totalContributions - scenarioA.totalContributions;
+  const totalInterestDiff = scenarioB.totalInterestEarned - scenarioA.totalInterestEarned;
+  const effectiveApyDiff = scenarioB.effectiveAnnualYield - scenarioA.effectiveAnnualYield;
+  const extraWealth = Math.abs(futureValueDiff);
+
+  let higherBalanceScenario: 'A' | 'B' | 'Equal' = 'Equal';
+  if (scenarioB.futureValue > scenarioA.futureValue + 0.01) {
+    higherBalanceScenario = 'B';
+  } else if (scenarioA.futureValue > scenarioB.futureValue + 0.01) {
+    higherBalanceScenario = 'A';
+  }
+
+  return {
+    scenarioA,
+    scenarioB,
+    futureValueDiff,
+    totalContributionsDiff,
+    totalInterestDiff,
+    effectiveApyDiff,
+    extraWealth,
+    higherBalanceScenario,
+  };
+}

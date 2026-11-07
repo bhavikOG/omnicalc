@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import fs from 'node:fs';
 import path from 'path';
 import { defineConfig, loadEnv, Plugin } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import { generateSitemapXml, generateRobotsTxt } from './src/utils/seoSitemap';
 
 function omnicalcDynamicSitemapPlugin(appUrl?: string): Plugin {
@@ -41,20 +42,117 @@ function omnicalcDynamicSitemapPlugin(appUrl?: string): Plugin {
   };
 }
 
+const SECURITY_HEADERS: Record<string, string> = {
+  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy':
+    'accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), xr-spatial-tracking=()',
+  'X-Permitted-Cross-Domain-Policies': 'none',
+  'X-DNS-Prefetch-Control': 'off',
+};
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const appUrl =
-    env.VITE_SITE_URL ||
-    env.APP_URL ||
-    'https://omnicalc.me';
+  const appUrl = env.VITE_SITE_URL || env.APP_URL || 'https://omnicalc.me';
 
   return {
-    plugins: [react(), tailwindcss(), omnicalcDynamicSitemapPlugin(appUrl)],
     base: '/',
+    plugins: [
+      react(),
+      tailwindcss(),
+      omnicalcDynamicSitemapPlugin(appUrl),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['icon.svg', 'apple-touch-icon.png', 'sitemap.xml', 'robots.txt'],
+        manifest: {
+          id: '/',
+          name: 'OmniCalc — Precision Online Calculators',
+          short_name: 'OmniCalc',
+          description:
+            '100% client-side calculator suite for Finance, Health, Math, and Text with offline PWA support.',
+          theme_color: '#10b981',
+          background_color: '#0a0d14',
+          display: 'standalone',
+          start_url: '/',
+          scope: '/',
+          icons: [
+            {
+              src: '/pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: '/pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: '/pwa-maskable-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,xml,txt}'],
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'gstatic-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+          ],
+        },
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
+    },
+    server: {
+      headers: SECURITY_HEADERS,
+      hmr: process.env.DISABLE_HMR !== 'true',
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    },
+    preview: {
+      headers: SECURITY_HEADERS,
+    },
+    build: {
+      sourcemap: false,
+      cssMinify: true,
     },
   };
 });

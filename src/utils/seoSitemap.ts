@@ -88,7 +88,7 @@ export function getSitemapEntries(
     priority: '1.0',
   });
 
-  // 2. All 8 Calculator Routes (Core Ranking Pages)
+  // 2. All 10 Calculator Routes (Core Ranking Pages)
   for (const calc of CALCULATOR_CATALOG) {
     const path = `/calculators/${calc.id}`;
     entries.push({

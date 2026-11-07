@@ -11,7 +11,7 @@ export function writePublicSeoFiles(baseUrl?: string): {
     baseUrl ||
     process.env.VITE_SITE_URL ||
     process.env.APP_URL ||
-    'https://bhavikog.github.io/omnicalc';
+    'https://omnicalc.me';
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const publicDir = path.resolve(process.cwd(), 'public');

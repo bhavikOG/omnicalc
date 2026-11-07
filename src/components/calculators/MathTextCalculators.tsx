@@ -4,18 +4,18 @@ import {
   calculateDiscountAndTax,
   calculateAgeAndDateDiff,
   analyzeTextContent,
+  convertUnits,
+  UNIT_DEFINITIONS,
+  UnitCategory,
 } from '../../utils/calculators';
-import { clampSafeNumber, sanitizeUserText } from '../../utils/security';
+import {
+  clampSafeNumber,
+  sanitizeUserText,
+  formatCurrencyValue,
+  getCurrencySymbol,
+} from '../../utils/security';
 import { CalculatorActionProps } from './FinanceCalculators';
-import { RotateCcw, Copy, Check, BookmarkPlus } from 'lucide-react';
-
-const formatCurrency = (val: number): string =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(val);
+import { RotateCcw, Copy, Check, BookmarkPlus, ArrowLeftRight } from 'lucide-react';
 
 /**
  * 5. Math: 3-in-1 Percentage Calculator
@@ -283,12 +283,18 @@ export const PercentageCalculator: React.FC<CalculatorActionProps> = ({ onSaveCa
 /**
  * 6. Math: Discount & Sales Tax Calculator
  */
-export const DiscountTaxCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculation }) => {
+export const DiscountTaxCalculator: React.FC<CalculatorActionProps> = ({
+  currency = 'USD',
+  onSaveCalculation,
+}) => {
   const [originalPrice, setOriginalPrice] = useState<number>(150);
   const [discountPercent, setDiscountPercent] = useState<number>(30);
   const [extraDiscountPercent, setExtraDiscountPercent] = useState<number>(10);
   const [taxPercent, setTaxPercent] = useState<number>(8.25);
   const [savedToast, setSavedToast] = useState<boolean>(false);
+
+  const sym = getCurrencySymbol(currency);
+  const formatCurrency = (val: number) => formatCurrencyValue(val, currency, 2);
 
   const result = calculateDiscountAndTax(
     originalPrice,
@@ -354,7 +360,7 @@ export const DiscountTaxCalculator: React.FC<CalculatorActionProps> = ({ onSaveC
                 htmlFor="disc-price"
                 className="text-xs font-medium text-slate-700 dark:text-slate-300"
               >
-                Original Sticker Price ($)
+                Original Sticker Price ({sym})
               </label>
               <input
                 id="disc-price"
@@ -851,3 +857,178 @@ export const WordCounterCalculator: React.FC<CalculatorActionProps> = ({ onSaveC
     </div>
   );
 };
+
+const UNIT_CATEGORY_TABS: Array<{ id: UnitCategory; label: string }> = [
+  { id: 'length', label: 'Length' },
+  { id: 'weight', label: 'Weight / Mass' },
+  { id: 'temperature', label: 'Temperature' },
+  { id: 'area', label: 'Area' },
+  { id: 'volume', label: 'Volume' },
+  { id: 'speed', label: 'Speed' },
+];
+
+/**
+ * 10. Math: Universal 6-Category Unit Converter
+ */
+export const UnitConverterCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculation }) => {
+  const [category, setCategory] = useState<UnitCategory>('length');
+  const [inputValue, setInputValue] = useState<number>(5);
+  const [fromUnit, setFromUnit] = useState<string>('mi');
+  const [toUnit, setToUnit] = useState<string>('km');
+  const [savedToast, setSavedToast] = useState<boolean>(false);
+
+  const units = UNIT_DEFINITIONS[category];
+  const result = convertUnits(category, inputValue, fromUnit, toUnit);
+  const fromDef = units.find((u) => u.id === fromUnit) ?? units[0];
+  const toDef = units.find((u) => u.id === toUnit) ?? units[1] ?? units[0];
+
+  const handleCategoryChange = (nextCat: UnitCategory) => {
+    setCategory(nextCat);
+    const nextUnits = UNIT_DEFINITIONS[nextCat];
+    setFromUnit(nextUnits[0].id);
+    setToUnit((nextUnits[1] ?? nextUnits[0]).id);
+  };
+
+  const handleSwapUnits = () => {
+    setFromUnit(toDef.id);
+    setToUnit(fromDef.id);
+  };
+
+  const formatConvertedNumber = (val: number): string => {
+    if (!Number.isFinite(val)) return '0';
+    if (Math.abs(val) >= 1000) return val.toLocaleString('en-US', { maximumFractionDigits: 4 });
+    if (Math.abs(val) > 0 && Math.abs(val) < 0.001) return val.toExponential(4);
+    return Number(val.toPrecision(7)).toString();
+  };
+
+  const handleSave = () => {
+    onSaveCalculation?.({
+      calculatorId: 'unit-converter',
+      calculatorTitle: 'Universal Unit Converter',
+      primaryResult: `${inputValue} ${fromDef.symbol} = ${formatConvertedNumber(result.convertedValue)} ${toDef.symbol}`,
+      detailSummary: `${category.toUpperCase()}: ${result.formulaSummary}`,
+    });
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 1800);
+  };
+
+  return (
+    <div className="liquid-glass rounded-2xl p-6 sm:p-8 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 dark:border-slate-800/70 pb-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {UNIT_CATEGORY_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => handleCategoryChange(tab.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                category === tab.id
+                  ? 'bg-indigo-600 text-white'
+                  : 'liquid-well text-slate-600 dark:text-slate-300 hover:text-indigo-600'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSave}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors cursor-pointer"
+        >
+          {savedToast ? <Check className="w-3.5 h-3.5" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
+          <span>{savedToast ? 'Saved' : 'Save Conversion'}</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        {/* Source Unit */}
+        <div className="lg:col-span-5 liquid-well rounded-xl p-5 space-y-3">
+          <label htmlFor="unit-input-val" className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">
+            From Quantity &amp; Unit
+          </label>
+          <input
+            id="unit-input-val"
+            type="number"
+            step="any"
+            value={inputValue}
+            onChange={(e) => setInputValue(clampSafeNumber(e.target.value, -1e12, 1e12, 0))}
+            className="w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xl font-mono font-bold text-slate-900 dark:text-white tabular-nums"
+          />
+          <select
+            aria-label="Source Measurement Unit"
+            value={fromDef.id}
+            onChange={(e) => setFromUnit(e.target.value)}
+            className="w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-medium text-slate-900 dark:text-white"
+          >
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.label} ({u.symbol})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Bidirectional Swap Button */}
+        <div className="lg:col-span-2 flex flex-col items-center justify-center">
+          <button
+            type="button"
+            onClick={handleSwapUnits}
+            aria-label="Swap Source and Target Units"
+            className="p-3 rounded-2xl liquid-well text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer"
+          >
+            <ArrowLeftRight className="w-5 h-5" />
+          </button>
+          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-1.5 text-center">
+            {result.formulaSummary}
+          </span>
+        </div>
+
+        {/* Target Unit */}
+        <div className="lg:col-span-5 liquid-well rounded-xl p-5 space-y-3">
+          <label htmlFor="unit-target-select" className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">
+            Converted Output &amp; Target Unit
+          </label>
+          <div
+            data-testid="unit-converted-output"
+            className="w-full rounded-xl border border-indigo-500/30 bg-indigo-50/40 dark:bg-indigo-950/30 px-3.5 py-2.5 text-xl font-mono font-bold text-indigo-600 dark:text-indigo-400 tabular-nums overflow-x-auto"
+          >
+            {formatConvertedNumber(result.convertedValue)} {toDef.symbol}
+          </div>
+          <select
+            id="unit-target-select"
+            aria-label="Target Measurement Unit"
+            value={toDef.id}
+            onChange={(e) => setToUnit(e.target.value)}
+            className="w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-medium text-slate-900 dark:text-white"
+          >
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.label} ({u.symbol})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Live Multi-Unit Equivalent Table */}
+      <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800/70 space-y-2.5">
+        <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          Simultaneous Equivalent Values Across All {category.toUpperCase()} Units
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {result.allUnitsTable.map((item) => (
+            <div key={item.id} className="liquid-well rounded-xl p-3 space-y-0.5">
+              <div className="text-xs text-slate-500 dark:text-slate-400">{item.label}</div>
+              <div className="text-sm font-mono font-bold text-slate-900 dark:text-white tabular-nums truncate">
+                {formatConvertedNumber(item.value)} <span className="text-indigo-600 dark:text-indigo-400">{item.symbol}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
