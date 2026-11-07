@@ -30,17 +30,17 @@ export const SeoHeadManager: React.FC<SeoHeadManagerProps> = ({ route, categoryF
         ? normalizeBaseUrl(window.location.origin)
         : normalizeBaseUrl();
 
-    let pageTitle = 'OmniCalc — Precision Financial, Health, Math & Text Calculators';
+    let pageTitle = 'OmniCalc — 100% Free Online Calculators [Instant & Private]';
     let pageDescription =
-      'Fast, accessible, AdSense-ready multi-calculator web portal featuring Loan EMI, Compound Interest, BMI, TDEE, Percentage, Discount, Age, and Word Counter tools.';
+      '⚡ 100% Free & No Sign-Up. Instant, accurate calculations for Loan EMI, SIP Retirement, Compound Interest, BMI & Calories. 100% on-device privacy.';
     let canonicalPath = '/';
     let jsonLdPayload: Record<string, unknown>;
 
     if (route.view === 'calculator') {
       const meta = CALCULATOR_CATALOG.find((c) => c.id === route.id);
       if (meta) {
-        pageTitle = `${meta.title} — Formula, Example & Free Tool | OmniCalc`;
-        pageDescription = `${meta.summary} Includes the exact ${meta.formulaTitle}, step-by-step worked example, and FAQs.`;
+        pageTitle = `${meta.shortTitle} Calculator [Free · Instant & Accurate] | OmniCalc`;
+        pageDescription = `⚡ 100% Free & No Sign-Up. ${meta.summary} Instant visual breakdown & 100% private.`;
         canonicalPath = `/calculators/${meta.id}`;
         jsonLdPayload = buildSchemaOrgGraph(origin, { view: 'calculator', meta });
       } else {
