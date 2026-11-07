@@ -6,7 +6,7 @@
 >
   <url>
     <loc>https://omnicalc.me/</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/" />
@@ -14,7 +14,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/calculators/loan-emi</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/loan-emi" />
@@ -22,7 +22,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/calculators/compound-interest</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/compound-interest" />
@@ -30,7 +30,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/calculators/bmi</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/bmi" />
@@ -38,7 +38,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/calculators/tdee</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/tdee" />
@@ -46,7 +46,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/calculators/percentage</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/percentage" />
@@ -54,7 +54,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/calculators/discount-tax</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/discount-tax" />
@@ -62,7 +62,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/calculators/age-date</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/age-date" />
@@ -70,15 +70,31 @@
   </url>
   <url>
     <loc>https://omnicalc.me/calculators/word-counter</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/word-counter" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://omnicalc.me/calculators/word-counter" />
   </url>
   <url>
+    <loc>https://omnicalc.me/calculators/sip-retirement</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/sip-retirement" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://omnicalc.me/calculators/sip-retirement" />
+  </url>
+  <url>
+    <loc>https://omnicalc.me/calculators/unit-converter</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/calculators/unit-converter" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://omnicalc.me/calculators/unit-converter" />
+  </url>
+  <url>
     <loc>https://omnicalc.me/category/finance</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.80</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/category/finance" />
@@ -86,7 +102,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/category/health</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.80</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/category/health" />
@@ -94,7 +110,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/category/math</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.80</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/category/math" />
@@ -102,7 +118,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/category/text</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.80</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/category/text" />
@@ -110,7 +126,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/legal/privacy</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/legal/privacy" />
@@ -118,7 +134,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/legal/terms</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/legal/terms" />
@@ -126,7 +142,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/legal/disclaimer</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/legal/disclaimer" />
@@ -134,7 +150,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/legal/about</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/legal/about" />
@@ -142,7 +158,7 @@
   </url>
   <url>
     <loc>https://omnicalc.me/legal/contact</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://omnicalc.me/legal/contact" />
