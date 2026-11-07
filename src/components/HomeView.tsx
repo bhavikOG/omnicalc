@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AdSenseBanner } from './AdSenseBanner';
 import {
   CALCULATOR_CATALOG,
   CATEGORIES,
@@ -377,30 +378,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* AD PLACEMENT BANNER CONTAINER (PERMANENT HIGH-VIEWABILITY SLOT) */}
-      <aside
-        aria-label="Advertisement Banner"
-        data-testid="home-ad-placement-container"
-        className="liquid-glass rounded-2xl px-5 py-3.5"
-      >
-        <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-slate-400 dark:text-slate-500 mb-2">
-          <span className="uppercase tracking-widest">Sponsored Advertisement · Google AdSense</span>
-          <span>Responsive Ad Slot</span>
-        </div>
-        <div className="min-h-[90px] rounded-xl liquid-well border border-dashed border-slate-300/60 dark:border-slate-800/90 flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-3">
-          <div className="space-y-0.5 text-center sm:text-left">
-            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Advertisement Partner Placement (728×90 / Responsive)
-            </div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">
-              High-visibility display unit for partner advertisers.
-            </div>
-          </div>
-          <span className="px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
-            Sponsored
-          </span>
-        </div>
-      </aside>
+      {/* AD PLACEMENT BANNER CONTAINER (MID-PAGE HIGH VIEWABILITY) */}
+      <AdSenseBanner className="my-2" label="Homepage Mid Directory Ad" />
 
       {/* BROWSE CALCULATORS BY TOPIC */}
       <section aria-labelledby="categories-heading" className="space-y-5">
@@ -486,6 +465,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
+      {/* LOWER HOMEPAGE AD BANNER */}
+      <AdSenseBanner className="my-2" label="Homepage Directory Bottom Ad" />
+
       {/* PRIVACY & DISTRACTION-FREE PROMISE */}
       <section className="liquid-glass rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-1.5 max-w-2xl">
@@ -494,7 +476,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <h2>Private by Design &amp; Distraction-Free</h2>
           </div>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            Every calculation happens on your own device—your financial numbers, health metrics, and text never leave your browser. Ads are automatically paused while you type or adjust sliders so you can focus on your work.
+            Every calculation happens on your own device—your financial numbers, health metrics, and text never leave your browser. Fast, accurate, and 100% free online calculators.
           </p>
         </div>
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AdSenseBanner } from './AdSenseBanner';
 import {
   ChevronDown,
   BookOpen,
@@ -211,28 +212,8 @@ export const AdSenseContentStructure: React.FC<AdSenseContentStructureProps> = (
         {children}
       </section>
 
-      {/* 4. MIDDLE SECTION: Permanent Google AdSense Sponsor Placement Container */}
-      <aside
-        aria-label="Advertisement Placement Container"
-        data-testid="ad-placement-container"
-        className="w-full rounded-2xl liquid-glass px-6 py-4"
-      >
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 min-h-[72px]">
-          <div className="space-y-1 text-center sm:text-left">
-            <div className="flex items-center justify-center sm:justify-start gap-2 text-xs text-slate-400 dark:text-slate-500">
-              <span className="font-mono uppercase tracking-widest text-[11px]">Sponsored · Google AdSense</span>
-              <span aria-hidden="true">·</span>
-              <span className="text-[11px]">Display Partner</span>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              High-visibility responsive 728×90 display banner positioned cleanly below calculation outputs.
-            </p>
-          </div>
-          <div className="px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
-            AdSense Ready
-          </div>
-        </div>
-      </aside>
+      {/* 4. MIDDLE SECTION: Primary Google AdSense Sponsor Banner */}
+      <AdSenseBanner className="my-6" label={`${meta.title} Mid Banner`} />
 
       {/* 5. BOTTOM SECTION: How the Formula Works, Step-by-Step Example & FAQs */}
       <div className="space-y-6 pt-1">
@@ -394,6 +375,9 @@ export const AdSenseContentStructure: React.FC<AdSenseContentStructureProps> = (
             })}
           </div>
         </section>
+
+        {/* 4. SECONDARY IN-ARTICLE AD BANNER */}
+        <AdSenseBanner className="my-4" label={`${meta.title} Pre-Related Tools Ad`} />
 
         {/* Related Calculators */}
         <section aria-labelledby="related-heading" className="space-y-3">
