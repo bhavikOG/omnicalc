@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   ChevronDown,
   BookOpen,
   HelpCircle,
   ArrowRight,
   Bookmark,
-  EyeOff,
-  Eye,
   Code2,
   Check,
   Copy,
@@ -59,13 +57,9 @@ export const AdSenseContentStructure: React.FC<AdSenseContentStructureProps> = (
   children,
 }) => {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  // Smart Focus-Aware Ad Shield: pauses/minimizes ads automatically while actively typing/adjusting inputs
-  const [focusShieldManual, setFocusShieldManual] = useState<boolean>(false);
-  const [isActivelyCalculating, setIsActivelyCalculating] = useState<boolean>(false);
   const [showEmbedGenerator, setShowEmbedGenerator] = useState<boolean>(false);
   const [embedCopied, setEmbedCopied] = useState<boolean>(false);
   const [formulaCopied, setFormulaCopied] = useState<boolean>(false);
-  const activityTimeoutRef = useRef<number | null>(null);
 
   const embedCodeSnippet = `<iframe src="https://omnicalc.me/?calc=${meta.id}&embed=1" width="100%" height="580" style="border:0;border-radius:16px;overflow:hidden;" sandbox="allow-scripts" referrerpolicy="no-referrer" loading="lazy" title="OmniCalc — ${meta.title}"></iframe>`;
 
@@ -80,26 +74,6 @@ export const AdSenseContentStructure: React.FC<AdSenseContentStructureProps> = (
     setFormulaCopied(true);
     setTimeout(() => setFormulaCopied(false), 1800);
   };
-
-  const triggerActiveCalculationFocus = () => {
-    setIsActivelyCalculating(true);
-    if (activityTimeoutRef.current) {
-      window.clearTimeout(activityTimeoutRef.current);
-    }
-    activityTimeoutRef.current = window.setTimeout(() => {
-      setIsActivelyCalculating(false);
-    }, 3500);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (activityTimeoutRef.current) {
-        window.clearTimeout(activityTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const adsMinimizedForWork = focusShieldManual || isActivelyCalculating;
 
   const relatedCalculators = CALCULATOR_CATALOG.filter(
     (c) => c.id !== meta.id && (c.category === meta.category || c.popular)
@@ -162,30 +136,6 @@ export const AdSenseContentStructure: React.FC<AdSenseContentStructureProps> = (
           >
             <Code2 className="w-3.5 h-3.5" />
             <span>Embed</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFocusShieldManual((prev) => !prev)}
-            aria-pressed={focusShieldManual}
-            title="Hides ads while you are working on your numbers"
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-              adsMinimizedForWork
-                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                : 'liquid-well text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            {adsMinimizedForWork ? (
-              <>
-                <EyeOff className="w-3.5 h-3.5" />
-                <span>Ads Paused</span>
-              </>
-            ) : (
-              <>
-                <Eye className="w-3.5 h-3.5" />
-                <span>Focus Mode</span>
-              </>
-            )}
           </button>
         </div>
       </div>
@@ -256,63 +206,32 @@ export const AdSenseContentStructure: React.FC<AdSenseContentStructureProps> = (
         </div>
       </div>
 
-      {/* 3. TOP SECTION: Interactive Calculator (Important Information First — Zero Ads Above/Inside) */}
-      <section
-        aria-label={`${meta.title} Interactive Tool`}
-        onInputCapture={triggerActiveCalculationFocus}
-        onChangeCapture={triggerActiveCalculationFocus}
-      >
+      {/* 3. TOP SECTION: Interactive Calculator */}
+      <section aria-label={`${meta.title} Interactive Tool`}>
         {children}
       </section>
 
-      {/* 4. MIDDLE SECTION: Non-Intrusive Google AdSense Space (Paused Automatically During Active Work) */}
+      {/* 4. MIDDLE SECTION: Permanent Google AdSense Sponsor Placement Container */}
       <aside
         aria-label="Advertisement Placement Container"
         data-testid="ad-placement-container"
-        className={`w-full rounded-2xl transition-colors duration-200 ${
-          adsMinimizedForWork
-            ? 'liquid-well px-5 py-2.5 opacity-60'
-            : 'liquid-glass px-6 py-4'
-        }`}
+        className="w-full rounded-2xl liquid-glass px-6 py-4"
       >
-        {adsMinimizedForWork ? (
-          <div className="flex items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
-            <span>
-              Focus Mode is on — ads are paused while you use the calculator
-            </span>
-            {focusShieldManual && (
-              <button
-                type="button"
-                onClick={() => setFocusShieldManual(false)}
-                className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium cursor-pointer whitespace-nowrap"
-              >
-                Show Ad Space
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 min-h-[72px]">
-            <div className="space-y-1 text-center sm:text-left">
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-xs text-slate-400 dark:text-slate-500">
-                <span>Sponsored · Google AdSense</span>
-                <span aria-hidden="true">·</span>
-                <button
-                  type="button"
-                  onClick={() => setFocusShieldManual(true)}
-                  className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-                >
-                  Hide while working
-                </button>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Reserved space for a responsive 728×90 display ad—placed below the calculator so it never gets in your way.
-              </p>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 min-h-[72px]">
+          <div className="space-y-1 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2 text-xs text-slate-400 dark:text-slate-500">
+              <span className="font-mono uppercase tracking-widest text-[11px]">Sponsored · Google AdSense</span>
+              <span aria-hidden="true">·</span>
+              <span className="text-[11px]">Display Partner</span>
             </div>
-            <div className="text-xs font-mono text-slate-400 dark:text-slate-500 shrink-0">
-              Ad Space (728×90)
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              High-visibility responsive 728×90 display banner positioned cleanly below calculation outputs.
+            </p>
           </div>
-        )}
+          <div className="px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
+            AdSense Ready
+          </div>
+        </div>
       </aside>
 
       {/* 5. BOTTOM SECTION: How the Formula Works, Step-by-Step Example & FAQs */}
