@@ -5,7 +5,7 @@ import {
   CalculatorId,
   CalculatorMeta,
   LegalPageId,
-} from '../data/calculatorCatalog';
+} from '../data/calculatorCatalog.ts';
 
 export interface SitemapUrlEntry {
   loc: string;

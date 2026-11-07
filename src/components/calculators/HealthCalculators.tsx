@@ -23,12 +23,45 @@ export const BmiCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculati
   const [heightInches, setHeightInches] = useState<number>(9);
   const [savedToast, setSavedToast] = useState<boolean>(false);
 
-  const effectiveWeightKg =
-    unitSystem === 'metric' ? weightKg : weightLbs * 0.45359237;
-  const effectiveHeightCm =
+  const handleSwitchUnit = (newSystem: 'metric' | 'imperial') => {
+    if (newSystem === unitSystem) return;
+    if (newSystem === 'imperial') {
+      const safeKg = clampSafeNumber(weightKg, 25, 300, 72);
+      const safeCm = clampSafeNumber(heightCm, 100, 250, 176);
+      const lbs = Math.round(safeKg * 2.20462262 * 10) / 10;
+      const totalInches = safeCm / 2.54;
+      const feet = Math.floor(totalInches / 12);
+      const inches = Math.round(totalInches % 12);
+      setWeightLbs(lbs);
+      setHeightFeet(feet);
+      setHeightInches(inches);
+    } else {
+      const safeLbs = clampSafeNumber(weightLbs, 55, 660, 159);
+      const safeFt = clampSafeNumber(heightFeet, 3, 8, 5);
+      const safeIn = clampSafeNumber(heightInches, 0, 11, 9);
+      const totalInches = safeFt * 12 + safeIn;
+      const cm = Math.round(totalInches * 2.54);
+      const kg = Math.round((safeLbs / 2.20462262) * 10) / 10;
+      setWeightKg(kg);
+      setHeightCm(cm);
+    }
+    setUnitSystem(newSystem);
+  };
+
+  const effectiveWeightKg = clampSafeNumber(
+    unitSystem === 'metric' ? weightKg : weightLbs * 0.45359237,
+    25,
+    300,
+    72
+  );
+  const effectiveHeightCm = clampSafeNumber(
     unitSystem === 'metric'
       ? heightCm
-      : (heightFeet * 12 + heightInches) * 2.54;
+      : (heightFeet * 12 + heightInches) * 2.54,
+    100,
+    250,
+    176
+  );
 
   const result = calculateBmi(effectiveWeightKg, effectiveHeightCm);
 
@@ -73,7 +106,7 @@ export const BmiCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculati
             >
               <button
                 type="button"
-                onClick={() => setUnitSystem('metric')}
+                onClick={() => handleSwitchUnit('metric')}
                 className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                   unitSystem === 'metric'
                     ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
@@ -84,7 +117,7 @@ export const BmiCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculati
               </button>
               <button
                 type="button"
-                onClick={() => setUnitSystem('imperial')}
+                onClick={() => handleSwitchUnit('imperial')}
                 className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                   unitSystem === 'imperial'
                     ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
@@ -290,12 +323,13 @@ export const BmiCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculati
 
           {/* Interactive Visual Health Status Gauge */}
           <div className="space-y-2.5 pt-2">
-            <div className="flex justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
-              <span>12.0</span>
-              <span>18.5</span>
-              <span>25.0</span>
-              <span>30.0</span>
-              <span>40.0+</span>
+            {/* Top tick labels positioned at exact zone thresholds */}
+            <div className="relative h-4 text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
+              <span className="absolute left-0">12.0</span>
+              <span className="absolute left-[23.2%] -translate-x-1/2">18.5</span>
+              <span className="absolute left-[46.4%] -translate-x-1/2">25.0</span>
+              <span className="absolute left-[64.3%] -translate-x-1/2">30.0</span>
+              <span className="absolute right-0">40.0+</span>
             </div>
 
             <div className="relative pt-1 pb-3">
@@ -316,11 +350,12 @@ export const BmiCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculati
               </div>
             </div>
 
-            <div className="grid grid-cols-4 text-[11px] text-center font-medium text-slate-600 dark:text-slate-400">
-              <span>Underweight</span>
-              <span>Normal</span>
-              <span>Overweight</span>
-              <span>Obese</span>
+            {/* Bottom category labels proportional to zone boundaries */}
+            <div className="flex text-[11px] text-center font-medium text-slate-600 dark:text-slate-400">
+              <span className="w-[23.2%] truncate">Underweight</span>
+              <span className="w-[23.2%] truncate">Normal</span>
+              <span className="w-[17.9%] truncate">Overweight</span>
+              <span className="w-[35.7%] truncate">Obese</span>
             </div>
           </div>
 
@@ -375,12 +410,45 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
   const [goalOffset, setGoalOffset] = useState<number>(-500);
   const [savedToast, setSavedToast] = useState<boolean>(false);
 
-  const effectiveWeightKg =
-    unitSystem === 'metric' ? weightKg : weightLbs * 0.45359237;
-  const effectiveHeightCm =
+  const handleSwitchUnit = (newSystem: 'metric' | 'imperial') => {
+    if (newSystem === unitSystem) return;
+    if (newSystem === 'imperial') {
+      const safeKg = clampSafeNumber(weightKg, 25, 300, 80);
+      const safeCm = clampSafeNumber(heightCm, 100, 250, 180);
+      const lbs = Math.round(safeKg * 2.20462262 * 10) / 10;
+      const totalInches = safeCm / 2.54;
+      const feet = Math.floor(totalInches / 12);
+      const inches = Math.round(totalInches % 12);
+      setWeightLbs(lbs);
+      setHeightFeet(feet);
+      setHeightInches(inches);
+    } else {
+      const safeLbs = clampSafeNumber(weightLbs, 55, 660, 176);
+      const safeFt = clampSafeNumber(heightFeet, 3, 8, 5);
+      const safeIn = clampSafeNumber(heightInches, 0, 11, 11);
+      const totalInches = safeFt * 12 + safeIn;
+      const cm = Math.round(totalInches * 2.54);
+      const kg = Math.round((safeLbs / 2.20462262) * 10) / 10;
+      setWeightKg(kg);
+      setHeightCm(cm);
+    }
+    setUnitSystem(newSystem);
+  };
+
+  const effectiveWeightKg = clampSafeNumber(
+    unitSystem === 'metric' ? weightKg : weightLbs * 0.45359237,
+    25,
+    300,
+    80
+  );
+  const effectiveHeightCm = clampSafeNumber(
     unitSystem === 'metric'
       ? heightCm
-      : (heightFeet * 12 + heightInches) * 2.54;
+      : (heightFeet * 12 + heightInches) * 2.54,
+    100,
+    250,
+    180
+  );
 
   const result = calculateTdee(
     gender,
@@ -390,7 +458,10 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
     activity,
     goalOffset
   );
-  const selectedTargetCalories = Math.max(1200, result.tdee + goalOffset);
+  const selectedTargetCalories =
+    goalOffset < 0 && result.tdee < 1200
+      ? Math.max(800, result.tdee + goalOffset)
+      : Math.max(1000, result.tdee + goalOffset);
 
   const handleSave = () => {
     onSaveCalculation?.({
@@ -446,7 +517,7 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
               >
                 <button
                   type="button"
-                  onClick={() => setUnitSystem('metric')}
+                  onClick={() => handleSwitchUnit('metric')}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                     unitSystem === 'metric'
                       ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
@@ -457,7 +528,7 @@ export const TdeeCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculat
                 </button>
                 <button
                   type="button"
-                  onClick={() => setUnitSystem('imperial')}
+                  onClick={() => handleSwitchUnit('imperial')}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                     unitSystem === 'imperial'
                       ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'

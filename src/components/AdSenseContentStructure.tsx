@@ -35,18 +35,19 @@ interface AdSenseContentStructureProps {
 const DOCK_ITEMS: Array<{
   id: CalculatorId;
   dockLabel: string;
+  mobileLabel: string;
   icon: React.FC<{ className?: string }>;
 }> = [
-  { id: 'loan-emi', dockLabel: 'Loan & EMI', icon: Landmark },
-  { id: 'sip-retirement', dockLabel: 'Retirement', icon: TrendingUp },
-  { id: 'compound-interest', dockLabel: 'Compound', icon: Flame },
-  { id: 'bmi', dockLabel: 'BMI', icon: HeartPulse },
-  { id: 'tdee', dockLabel: 'Calories', icon: Activity },
-  { id: 'percentage', dockLabel: 'Percentage', icon: Percent },
-  { id: 'unit-converter', dockLabel: 'Units', icon: ArrowLeftRight },
-  { id: 'discount-tax', dockLabel: 'Discounts', icon: Tag },
-  { id: 'age-date', dockLabel: 'Age & Date', icon: Calendar },
-  { id: 'word-counter', dockLabel: 'Word Count', icon: FileText },
+  { id: 'loan-emi', dockLabel: 'Loan & EMI', mobileLabel: 'EMI', icon: Landmark },
+  { id: 'sip-retirement', dockLabel: 'Retirement', mobileLabel: 'Retire', icon: TrendingUp },
+  { id: 'compound-interest', dockLabel: 'Compound', mobileLabel: 'Growth', icon: Flame },
+  { id: 'bmi', dockLabel: 'BMI', mobileLabel: 'BMI', icon: HeartPulse },
+  { id: 'tdee', dockLabel: 'Calories', mobileLabel: 'TDEE', icon: Activity },
+  { id: 'percentage', dockLabel: 'Percentage', mobileLabel: '% Calc', icon: Percent },
+  { id: 'unit-converter', dockLabel: 'Units', mobileLabel: 'Units', icon: ArrowLeftRight },
+  { id: 'discount-tax', dockLabel: 'Discounts', mobileLabel: 'Sales', icon: Tag },
+  { id: 'age-date', dockLabel: 'Age & Date', mobileLabel: 'Age', icon: Calendar },
+  { id: 'word-counter', dockLabel: 'Word Count', mobileLabel: 'Words', icon: FileText },
 ];
 
 export const AdSenseContentStructure: React.FC<AdSenseContentStructureProps> = ({
@@ -185,8 +186,11 @@ export const AdSenseContentStructure: React.FC<AdSenseContentStructureProps> = (
                 }`}
               >
                 <Icon className="w-4 h-4 mb-1 shrink-0" />
-                <span className="text-[10px] sm:text-[11px] tracking-tight truncate max-w-full">
+                <span className="hidden sm:inline text-[11px] tracking-tight truncate max-w-full">
                   {item.dockLabel}
+                </span>
+                <span className="sm:hidden text-[10px] font-semibold tracking-tight truncate max-w-full">
+                  {item.mobileLabel}
                 </span>
               </button>
             );

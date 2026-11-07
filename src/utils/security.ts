@@ -9,7 +9,7 @@ const DANGEROUS_PATTERNS = [
   /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
   /javascript\s*:/gi,
   /vbscript\s*:/gi,
-  /data\s*:\s*text\/html/gi,
+  /data\s*:\s*(text\/html|image\/svg\+xml|application\/xhtml\+xml|text\/xml)/gi,
   /on\w+\s*=\s*["'][^"']*["']/gi,
   /on\w+\s*=\s*[^\s>]+/gi,
   /<iframe\b[^>]*>/gi,
@@ -39,19 +39,26 @@ export function isSafeObjectKey(key: string): boolean {
 /**
  * Strips potentially malicious HTML/script tags and inline event handlers
  * from user-supplied text while preserving normal prose and punctuation.
+ * Uses iterative sanitization to eliminate nested/re-entrant bypass vectors.
  */
 export function sanitizeUserText(input: string, maxLength: number = 50000): string {
   if (typeof input !== 'string') return '';
   let cleaned = input.slice(0, maxLength);
-  for (const pattern of DANGEROUS_PATTERNS) {
-    cleaned = cleaned.replace(pattern, '');
+  let prev = '';
+  let iterations = 0;
+  while (prev !== cleaned && iterations < 5) {
+    prev = cleaned;
+    for (const pattern of DANGEROUS_PATTERNS) {
+      cleaned = cleaned.replace(pattern, '');
+    }
+    iterations++;
   }
   return cleaned;
 }
 
 /**
- * Sanitizes single-line search and form fields by removing HTML angle brackets
- * and control characters.
+ * Sanitizes single-line search and form fields by removing HTML angle brackets,
+ * control characters, and dangerous URL pseudo-protocols.
  */
 export function sanitizeSingleLineInput(input: string, maxLength: number = 200): string {
   if (typeof input !== 'string') return '';
@@ -77,16 +84,19 @@ export function clampSafeNumber(
 /**
  * OWASP CSV Formula Injection Defense:
  * Spreadsheet software (Excel, Google Sheets, LibreOffice) executes cells starting with
- * '=', '+', '-', '@', '\t', or '\r' as executable formulas/DDE commands.
- * This function neutralizes any leading formula trigger characters and safely quotes cells.
+ * '=', '+', '-', '@', '\t', '\r', '|', or '%' as executable formulas/DDE commands.
+ * Leading whitespace is stripped by spreadsheet engines before evaluation.
+ * This function trims leading whitespace, neutralizes any leading formula trigger characters,
+ * and safely quotes cells to guarantee static text interpretation.
  */
 export function sanitizeCsvCell(value: string | number): string {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? String(value) : '0';
   }
   const cleanText = sanitizeSingleLineInput(String(value ?? ''), 500);
-  // Strip any leading formula-trigger characters (=, +, -, @, tab, CR)
-  const neutralized = cleanText.replace(/^[=+\-@\t\r]+/, '');
+  const trimmed = cleanText.trimStart();
+  // Strip any leading formula-trigger characters (=, +, -, @, |, %, tab, CR)
+  const neutralized = trimmed.replace(/^[=+\-@\t\r%|]+/, '');
   const escaped = neutralized.replace(/"/g, '""');
   return `"${escaped}"`;
 }
@@ -259,13 +269,15 @@ const VAULT_OBFUSCATION_KEY = 'OmniCalc_ZeroLeak_Vault_Key_v2';
 
 /**
  * Obfuscates local storage payloads so plain JSON is never visible in Chrome DevTools -> Application -> LocalStorage.
+ * Encodes strings into UTF-8 URI representation before XOR to ensure safe multi-byte currency/symbol roundtrips.
  */
 export function encodeVaultPayload(plainText: string): string {
   try {
+    const utf8Safe = encodeURIComponent(plainText);
     const bytes: number[] = [];
-    for (let i = 0; i < plainText.length; i++) {
+    for (let i = 0; i < utf8Safe.length; i++) {
       const k = VAULT_OBFUSCATION_KEY.charCodeAt(i % VAULT_OBFUSCATION_KEY.length);
-      bytes.push(plainText.charCodeAt(i) ^ (k & 0x7f));
+      bytes.push(utf8Safe.charCodeAt(i) ^ (k & 0x7f));
     }
     const hex = bytes.map((b) => b.toString(16).padStart(2, '0')).join('');
     return `v2:${hex}`;
@@ -275,7 +287,7 @@ export function encodeVaultPayload(plainText: string): string {
 }
 
 /**
- * Decodes an obfuscated local storage payload (backward-compatible with plain JSON if migrating).
+ * Decodes an obfuscated local storage payload (backward-compatible with plain JSON and legacy unencoded payloads).
  */
 export function decodeVaultPayload(stored: string): string {
   if (!stored) return '';
@@ -283,14 +295,18 @@ export function decodeVaultPayload(stored: string): string {
   try {
     const hex = stored.slice(3);
     if (hex.length % 2 !== 0) return '';
-    let out = '';
+    let utf8Safe = '';
     for (let i = 0; i < hex.length; i += 2) {
       const byteVal = parseInt(hex.slice(i, i + 2), 16);
       const charIdx = i / 2;
       const k = VAULT_OBFUSCATION_KEY.charCodeAt(charIdx % VAULT_OBFUSCATION_KEY.length);
-      out += String.fromCharCode(byteVal ^ (k & 0x7f));
+      utf8Safe += String.fromCharCode(byteVal ^ (k & 0x7f));
     }
-    return out;
+    try {
+      return decodeURIComponent(utf8Safe);
+    } catch {
+      return utf8Safe;
+    }
   } catch {
     return '';
   }
@@ -336,8 +352,8 @@ export function isInspectShortcut(e: InspectShortcutEventLike): boolean {
 }
 
 /**
- * Installs runtime protection against right-click Inspect, DevTools keyboard shortcuts,
- * element dragging, and console inspection. Returns a cleanup function.
+ * Installs lightweight runtime protection against dev shortcuts like F12 and Ctrl+Shift+I.
+ * Standard user actions (right-click copy/paste, text selection, drag-and-drop) are fully preserved.
  */
 export function installAntiInspectProtection(
   onBlockedAttempt?: (reason: string) => void
@@ -346,31 +362,18 @@ export function installAntiInspectProtection(
     return () => {};
   }
 
-  const handleContextMenu = (e: MouseEvent) => {
-    e.preventDefault();
-    onBlockedAttempt?.('Right-click Inspect menu is disabled on this protected workspace.');
-  };
-
   const handleKeyDown = (e: KeyboardEvent) => {
     if (isInspectShortcut(e)) {
       e.preventDefault();
       e.stopPropagation();
-      onBlockedAttempt?.('Developer Tools & View-Source shortcuts are restricted.');
+      onBlockedAttempt?.('Developer Tools shortcut was intercepted.');
     }
   };
 
-  const handleDragStart = (e: DragEvent) => {
-    e.preventDefault();
-  };
-
-  document.addEventListener('contextmenu', handleContextMenu);
   window.addEventListener('keydown', handleKeyDown, { capture: true });
-  document.addEventListener('dragstart', handleDragStart);
 
   return () => {
-    document.removeEventListener('contextmenu', handleContextMenu);
     window.removeEventListener('keydown', handleKeyDown, { capture: true });
-    document.removeEventListener('dragstart', handleDragStart);
   };
 }
 
@@ -503,8 +506,8 @@ export function getSecurityAuditStatus(): SecurityAuditCheck[] {
   return [
     {
       id: 'anti-inspect',
-      label: 'Inspect & Source Protection',
-      detail: 'Right-click Inspect, developer shortcut keys, and source maps are disabled.',
+      label: 'Developer Safeguards & Free Copy/Paste',
+      detail: 'Standard user actions (copy, paste, selection) are fully open while dev shortcut guards remain active.',
       verified: true,
     },
     {

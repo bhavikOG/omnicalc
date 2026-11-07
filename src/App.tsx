@@ -316,6 +316,23 @@ export default function App() {
 
   const auditChecks = getSecurityAuditStatus();
 
+  const isEmbedMode =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('embed') === '1';
+
+  if (isEmbedMode) {
+    const calcId =
+      route.view === 'calculator'
+        ? route.id
+        : (new URLSearchParams(window.location.search).get('calc') as CalculatorId) || 'loan-emi';
+    return (
+      <div className="p-3 sm:p-6 liquid-canvas text-slate-900 dark:text-slate-100 min-h-screen">
+        <SeoHeadManager route={{ view: 'calculator', id: calcId }} categoryFilter="All" />
+        {renderCalculatorById(calcId)}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col liquid-canvas overflow-x-hidden text-slate-900 dark:text-slate-100 transition-colors">
       <SeoHeadManager route={route} categoryFilter={categoryFilter} />

@@ -52,7 +52,14 @@ export function calculateLoanEmi(
     monthlyEmi = safePrincipal / totalMonths;
   } else {
     const factor = Math.pow(1 + monthlyRate, totalMonths);
-    monthlyEmi = (safePrincipal * monthlyRate * factor) / (factor - 1);
+    if (!Number.isFinite(factor) || factor > 1e12) {
+      // Numerical stability guard against extreme stress-test interest rates
+      monthlyEmi = safePrincipal * monthlyRate;
+    } else if (factor <= 1) {
+      monthlyEmi = safePrincipal / totalMonths;
+    } else {
+      monthlyEmi = (safePrincipal * monthlyRate * factor) / (factor - 1);
+    }
   }
 
   const totalPayment = monthlyEmi * totalMonths;
@@ -127,7 +134,10 @@ export function calculateCompoundInterest(
   const PMT = Math.max(0, Number.isFinite(monthlyContribution) ? monthlyContribution : 0);
   const r = Math.max(0, Number.isFinite(annualRatePercent) ? annualRatePercent : 0) / 100;
   const t = Math.max(1, Math.min(100, Math.round(Number.isFinite(years) ? years : 1)));
-  const n = Math.max(1, compoundingFrequency);
+  const n =
+    Number.isFinite(compoundingFrequency) && compoundingFrequency > 0
+      ? compoundingFrequency
+      : 12;
 
   const yearlyBreakdown: CompoundInterestResult['yearlyBreakdown'] = [];
   let currentBalance = P;
@@ -269,7 +279,20 @@ export function calculateTdee(
   const multiplier = ACTIVITY_MULTIPLIERS[activity] ?? 1.2;
   const tdee = bmr * multiplier;
 
-  const targetCalories = Math.max(1200, tdee + targetDeficitOrSurplus);
+  // Helper to compute a caloric deficit without inadvertently recommending a surplus
+  // for petite individuals or individuals with baseline maintenance near or below 1,200 kcal
+  const safeDeficit = (deficitAmount: number): number => {
+    const raw = Math.round(tdee - deficitAmount);
+    if (tdee >= 1200) {
+      return Math.max(1200, raw);
+    }
+    // For petite / low-TDEE users: guarantee deficit is strictly below maintenance, with safety floor of 800 kcal
+    return Math.max(800, Math.min(raw, Math.round(tdee - 100)));
+  };
+
+  const rawTarget = Math.round(tdee + targetDeficitOrSurplus);
+  const targetCalories =
+    targetDeficitOrSurplus < 0 ? safeDeficit(-targetDeficitOrSurplus) : Math.max(800, rawTarget);
 
   // Balanced High-Satiety Macro Split: 30% Protein, 40% Carbs, 30% Fats
   const proteinGrams = Math.round((targetCalories * 0.3) / 4);
@@ -279,9 +302,9 @@ export function calculateTdee(
   return {
     bmr: Math.round(bmr),
     tdee: Math.round(tdee),
-    mildDeficitCalories: Math.max(1200, Math.round(tdee - 250)),
-    standardDeficitCalories: Math.max(1200, Math.round(tdee - 500)),
-    aggressiveDeficitCalories: Math.max(1200, Math.round(tdee - 750)),
+    mildDeficitCalories: safeDeficit(250),
+    standardDeficitCalories: safeDeficit(500),
+    aggressiveDeficitCalories: safeDeficit(750),
     leanBulkCalories: Math.round(tdee + 250),
     macrosForTarget: {
       proteinGrams,
@@ -501,13 +524,21 @@ export function analyzeTextContent(text: string): TextCounterResult {
   const wordTokens = trimmed.length === 0 ? [] : trimmed.split(/\s+/).filter(Boolean);
   const words = wordTokens.length;
 
-  const sentences =
-    trimmed.length === 0
-      ? 0
-      : trimmed
-          .split(/[.!?]+/)
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0).length;
+  // Intelligent sentence boundary detection:
+  // Protects common honorifics and abbreviations from false splits
+  const protectedText = trimmed.replace(
+    /\b(Dr|Mr|Mrs|Ms|Prof|Sr|Jr|vs|etc|e\.g|i\.e)\./gi,
+    '$1__DOT__'
+  );
+
+  // Splits on terminal punctuation (. ! ?) followed by whitespace and the next sentence,
+  // without false-splitting on decimal numbers (e.g. $19.99)
+  const rawSentences = protectedText
+    .split(/(?<=[.!?])(?:\s+|\n+)(?=[A-Z0-9"'])/)
+    .map((s) => s.replace(/__DOT__/g, '.').trim())
+    .filter((s) => s.length > 0);
+
+  const sentences = trimmed.length === 0 ? 0 : rawSentences.length;
 
   const paragraphs =
     trimmed.length === 0
@@ -753,6 +784,12 @@ export function convertUnits(
       formulaSummary = `(${safeVal}°F − 32) × 5/9 = ${convertedValue.toFixed(2)}°C`;
     } else if (fromUnit.id === 'C' && toUnit.id === 'K') {
       formulaSummary = `${safeVal}°C + 273.15 = ${convertedValue.toFixed(2)} K`;
+    } else if (fromUnit.id === 'K' && toUnit.id === 'C') {
+      formulaSummary = `${safeVal} K − 273.15 = ${convertedValue.toFixed(2)}°C`;
+    } else if (fromUnit.id === 'F' && toUnit.id === 'K') {
+      formulaSummary = `(${safeVal}°F − 32) × 5/9 + 273.15 = ${convertedValue.toFixed(2)} K`;
+    } else if (fromUnit.id === 'K' && toUnit.id === 'F') {
+      formulaSummary = `(${safeVal} K − 273.15) × 9/5 + 32 = ${convertedValue.toFixed(2)}°F`;
     }
 
     const allUnitsTable = units.map((u) => ({

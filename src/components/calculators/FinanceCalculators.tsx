@@ -31,6 +31,7 @@ import {
   Sparkles,
   Minus,
   Plus,
+  Calendar,
 } from 'lucide-react';
 
 export interface CalculatorActionProps {
@@ -2096,6 +2097,7 @@ export const SipRetirementCalculator: React.FC<CalculatorActionProps> = ({
   const [inflationRate, setInflationRate] = useState<number>(3);
   const [tenureYears, setTenureYears] = useState<number>(20);
   const [savedToast, setSavedToast] = useState<boolean>(false);
+  const [showSchedule, setShowSchedule] = useState<boolean>(false);
 
   const sym = getCurrencySymbol(currency);
   const fmtWhole = (v: number) => formatCurrencyValue(v, currency, 0);
@@ -2279,6 +2281,18 @@ export const SipRetirementCalculator: React.FC<CalculatorActionProps> = ({
                 <Download className="w-3.5 h-3.5" />
                 <span>CSV</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setShowSchedule((prev) => !prev)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                  showSchedule
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'liquid-well text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>{showSchedule ? 'Hide Table' : 'Yearly Table'}</span>
+              </button>
             </div>
           </div>
 
@@ -2325,6 +2339,53 @@ export const SipRetirementCalculator: React.FC<CalculatorActionProps> = ({
               </span>
             </div>
           </div>
+
+          {showSchedule && (
+            <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  Year-by-Year Growth &amp; Inflation Breakdown
+                </h3>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  {result.yearlySchedule.length} Years Projected
+                </span>
+              </div>
+              <div className="liquid-well rounded-xl overflow-hidden max-h-72 overflow-y-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="sticky top-0 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-xs text-slate-500 dark:text-slate-400 shadow-xs">
+                    <tr className="border-b border-slate-200/70 dark:border-slate-800">
+                      <th className="py-2.5 px-3 font-medium">Year</th>
+                      <th className="py-2.5 px-3 font-medium text-right">Monthly SIP</th>
+                      <th className="py-2.5 px-3 font-medium text-right">Total Invested</th>
+                      <th className="py-2.5 px-3 font-medium text-right">Future Value</th>
+                      <th className="py-2.5 px-3 font-medium text-right">Today&rsquo;s Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/50 dark:divide-slate-800/60 font-mono tabular-nums">
+                    {result.yearlySchedule.map((row) => (
+                      <tr key={row.year} className="hover:bg-slate-200/30 dark:hover:bg-slate-700/20">
+                        <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white">
+                          Year {row.year}
+                        </td>
+                        <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-300">
+                          {fmtWhole(row.monthlySipThatYear)}
+                        </td>
+                        <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-300">
+                          {fmtWhole(row.totalInvested)}
+                        </td>
+                        <td className="py-2 px-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                          {fmtWhole(row.nominalCorpus)}
+                        </td>
+                        <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">
+                          {fmtWhole(row.realCorpus)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

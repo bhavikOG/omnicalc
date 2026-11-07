@@ -22,6 +22,9 @@ import {
   sanitizeUserText,
   sanitizeSingleLineInput,
   clampSafeNumber,
+  sanitizeCsvCell,
+  encodeVaultPayload,
+  decodeVaultPayload,
 } from './security';
 import { CALCULATOR_CATALOG } from '../data/calculatorCatalog';
 
@@ -33,6 +36,11 @@ test('Loan EMI Calculator computes accurate monthly EMI and breakdown', () => {
   assert.ok(result.totalInterest > 33200 && result.totalInterest < 33250);
   assert.equal(result.yearlySchedule.length, 10);
   assert.ok(Math.abs(result.principalPercentage + result.interestPercentage - 100) < 0.001);
+
+  // Extreme hyper-rate stress test (ensures no NaN overflow)
+  const extreme = calculateLoanEmi(100000, 10000, 10);
+  assert.ok(Number.isFinite(extreme.monthlyEmi));
+  assert.ok(!Number.isNaN(extreme.monthlyEmi));
 });
 
 test('Compound Interest Calculator computes accurate future value', () => {
@@ -41,6 +49,11 @@ test('Compound Interest Calculator computes accurate future value', () => {
   assert.ok(Math.abs(result.futureValue - 22196.4) < 1);
   assert.equal(result.totalContributions, 10000);
   assert.equal(result.yearlyBreakdown.length, 10);
+
+  // Compounding frequency NaN guard test
+  const nanFreq = calculateCompoundInterest(10000, 100, 8, 5, NaN);
+  assert.ok(Number.isFinite(nanFreq.futureValue));
+  assert.ok(!Number.isNaN(nanFreq.futureValue));
 });
 
 test('BMI Calculator classifies categories and healthy ranges properly', () => {
@@ -61,6 +74,11 @@ test('TDEE Calculator applies Mifflin-St Jeor equation accurately', () => {
   // TDEE = 1780 * 1.55 = 2759
   assert.equal(res.tdee, 2759);
   assert.equal(res.standardDeficitCalories, 2259);
+
+  // Low maintenance TDEE deficit doesn't produce an unintended caloric surplus
+  const lowTdee = calculateTdee('female', 65, 42, 145, 'sedentary', -500);
+  assert.ok(lowTdee.standardDeficitCalories < lowTdee.tdee);
+  assert.ok(lowTdee.mildDeficitCalories < lowTdee.tdee);
 });
 
 test('3-in-1 Percentage Calculator handles all 3 modes', () => {
@@ -96,23 +114,27 @@ test('Live Word & Character Counter counts words, sentences, paragraphs and read
   assert.equal(res.sentences, 3);
   assert.equal(res.paragraphs, 2);
   assert.ok(res.charactersWithSpaces > res.charactersWithoutSpaces);
+
+  // Smart sentence detection protects against splitting on decimal numbers and abbreviations
+  const decimalDoc = analyzeTextContent('Dr. Smith bought items for $19.99 in the U.S.A. It was a great day!');
+  assert.equal(decimalDoc.sentences, 2);
 });
 
-test('Dynamic Sitemap Generator includes all 8 calculator routes, categories, and legal pages', () => {
-  const entries = getSitemapEntries('https://omnicalc.app', '2026-11-06');
-  // 1 home + 8 calculators + 4 categories + 5 legal pages = 18 canonical routes
-  assert.equal(entries.length, 18);
+test('Dynamic Sitemap Generator includes all 10 calculator routes, categories, and legal pages', () => {
+  const entries = getSitemapEntries('https://omnicalc.me', '2026-11-07');
+  // 1 home + 10 calculators + 4 categories + 5 legal pages = 20 canonical routes
+  assert.equal(entries.length, 20);
 
-  const xml = generateSitemapXml('https://omnicalc.app', '2026-11-06');
+  const xml = generateSitemapXml('https://omnicalc.me', '2026-11-07');
   assert.ok(xml.includes('<urlset'));
   for (const calc of CALCULATOR_CATALOG) {
-    assert.ok(xml.includes(`https://omnicalc.app/calculators/${calc.id}`));
+    assert.ok(xml.includes(`https://omnicalc.me/calculators/${calc.id}`));
   }
 
-  const robots = generateRobotsTxt('https://omnicalc.app');
+  const robots = generateRobotsTxt('https://omnicalc.me');
   assert.ok(robots.includes('User-agent: Mediapartners-Google'));
-  assert.ok(robots.includes('Sitemap: https://omnicalc.app/sitemap.xml'));
-  assert.equal(normalizeBaseUrl(), 'https://omnicalc.app');
+  assert.ok(robots.includes('Sitemap: https://omnicalc.me/sitemap.xml'));
+  assert.equal(normalizeBaseUrl(), 'https://omnicalc.me');
 });
 
 test('URL Route Parser and Schema.org Graph Builder resolve calculator routes cleanly', () => {
@@ -122,7 +144,7 @@ test('URL Route Parser and Schema.org Graph Builder resolve calculator routes cl
   const parsedCat = parsePathnameToRoute('/category/health');
   assert.deepEqual(parsedCat, { view: 'home', categoryFilter: 'Health' });
 
-  const schema = buildSchemaOrgGraph('https://omnicalc.app', {
+  const schema = buildSchemaOrgGraph('https://omnicalc.me', {
     view: 'calculator',
     meta: CALCULATOR_CATALOG[0],
   }) as { '@graph': Array<{ '@type': string }> };
@@ -140,6 +162,10 @@ test('Security & XSS input sanitization strips script vectors and clamps numeric
   assert.ok(!cleaned.includes('javascript:'));
   assert.ok(cleaned.includes('Hello World'));
 
+  // Test nested script injection vector
+  const nestedScript = '<scr<script>ipt>alert(1)</script>';
+  assert.ok(!sanitizeUserText(nestedScript).includes('<script>'));
+
   const singleLine = sanitizeSingleLineInput('   Loan <img onerror=alert(1)> EMI   ', 50);
   assert.ok(!singleLine.includes('<'));
   assert.ok(!singleLine.includes('onerror='));
@@ -147,4 +173,16 @@ test('Security & XSS input sanitization strips script vectors and clamps numeric
   assert.equal(clampSafeNumber(999999, 0, 1000, 50), 1000);
   assert.equal(clampSafeNumber(-25, 0, 1000, 50), 0);
   assert.equal(clampSafeNumber(NaN, 0, 1000, 50), 50);
+
+  // OWASP CSV Injection Defense test (including leading whitespace bypass prevention)
+  assert.equal(sanitizeCsvCell("   =cmd|' /C calc'!A0"), "\"cmd|' /C calc'!A0\"");
+  assert.equal(sanitizeCsvCell("  +12345"), '"12345"');
+  assert.equal(sanitizeCsvCell("@SUM(1+1)"), '"SUM(1+1)"');
+  assert.equal(sanitizeCsvCell("|pipeTrigger"), '"pipeTrigger"');
+
+  // Multi-byte Unicode Currency vault encryption/decryption roundtrip
+  const testPayload = JSON.stringify([{ symbol: '₹', euro: '€', pound: '£', yen: '¥' }]);
+  const encrypted = encodeVaultPayload(testPayload);
+  const decrypted = decodeVaultPayload(encrypted);
+  assert.equal(decrypted, testPayload);
 });

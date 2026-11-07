@@ -48,7 +48,7 @@ export const LegalCompliancePages: React.FC<LegalCompliancePagesProps> = ({
   const [activeSeoPreviewTab, setActiveSeoPreviewTab] = useState<'table' | 'sitemap-xml' | 'robots-txt'>('table');
   const [copiedXml, setCopiedXml] = useState(false);
 
-  const todayIso = '2026-11-06';
+  const todayIso = new Date().toISOString().split('T')[0];
   const sitemapEntries = getSitemapEntries(customBaseUrl, todayIso);
   const sitemapXmlString = generateSitemapXml(customBaseUrl, todayIso);
   const robotsTxtString = generateRobotsTxt(customBaseUrl);

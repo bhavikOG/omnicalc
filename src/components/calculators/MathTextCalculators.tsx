@@ -145,13 +145,13 @@ export const PercentageCalculator: React.FC<CalculatorActionProps> = ({ onSaveCa
 
           <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800/70">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              {m1Percent}% of {m1Value} equals
+              {m1Percent}% of {m1Value.toLocaleString('en-US')} equals
             </div>
             <div
               data-testid="pct-mode1-result"
               className="text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums mt-0.5"
             >
-              {Number(result.percentOfValue.toFixed(4))}
+              {Number(result.percentOfValue.toFixed(4)).toLocaleString('en-US')}
             </div>
           </div>
         </div>
@@ -200,14 +200,14 @@ export const PercentageCalculator: React.FC<CalculatorActionProps> = ({ onSaveCa
 
           <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800/70">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              {m2Part} out of {m2Whole} is
+              {m2Part.toLocaleString('en-US')} out of {m2Whole.toLocaleString('en-US')} is
             </div>
             <div
               data-testid="pct-mode2-result"
               className="text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums mt-0.5"
             >
               {result.whatPercentOf !== null
-                ? `${Number(result.whatPercentOf.toFixed(2))}%`
+                ? `${Number(result.whatPercentOf.toFixed(2)).toLocaleString('en-US')}%`
                 : 'Undefined (÷0)'}
             </div>
           </div>
@@ -257,7 +257,7 @@ export const PercentageCalculator: React.FC<CalculatorActionProps> = ({ onSaveCa
 
           <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800/70">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Difference: {result.difference >= 0 ? `+${result.difference}` : result.difference}
+              Difference: {result.difference >= 0 ? `+${result.difference.toLocaleString('en-US')}` : result.difference.toLocaleString('en-US')}
             </div>
             <div
               data-testid="pct-mode3-result"
@@ -384,7 +384,7 @@ export const DiscountTaxCalculator: React.FC<CalculatorActionProps> = ({
                 id="disc-tax"
                 type="number"
                 min={0}
-                max={30}
+                max={100}
                 step={0.25}
                 value={taxPercent}
                 onChange={(e) => setTaxPercent(clampSafeNumber(e.target.value, 0, 100, 0))}
@@ -656,10 +656,16 @@ Use this live lexical analyzer to inspect word count, character limits for SEO m
 
 export const WordCounterCalculator: React.FC<CalculatorActionProps> = ({ onSaveCalculation }) => {
   const [text, setText] = useState<string>(DEFAULT_SAMPLE_TEXT);
+  const [previousText, setPreviousText] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [savedToast, setSavedToast] = useState<boolean>(false);
 
   const stats = analyzeTextContent(text);
+
+  const transformText = (newText: string) => {
+    setPreviousText(text);
+    setText(newText);
+  };
 
   const handleCopy = () => {
     if (navigator.clipboard) {
@@ -710,9 +716,12 @@ export const WordCounterCalculator: React.FC<CalculatorActionProps> = ({ onSaveC
           </div>
         </div>
         <div className="liquid-well rounded-xl p-3.5">
-          <div className="text-xs text-slate-500 dark:text-slate-400">Sentences / Paras</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">Sentences / Paragraphs</div>
           <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tabular-nums mt-0.5">
             {stats.sentences} / {stats.paragraphs}
+          </div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Avg Word: {stats.averageWordLength} chars
           </div>
         </div>
         <div className="liquid-well rounded-xl p-3.5">
@@ -753,16 +762,28 @@ export const WordCounterCalculator: React.FC<CalculatorActionProps> = ({ onSaveC
                 <span>{savedToast ? 'Saved' : 'Save Snapshot'}</span>
               </button>
             )}
+            {previousText !== null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setText(previousText);
+                  setPreviousText(null);
+                }}
+                className="px-2.5 py-1 text-xs font-semibold rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50/80 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 cursor-pointer"
+              >
+                Undo
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setText(text.toUpperCase())}
+              onClick={() => transformText(text.toUpperCase())}
               className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               UPPERCASE
             </button>
             <button
               type="button"
-              onClick={() => setText(text.toLowerCase())}
+              onClick={() => transformText(text.toLowerCase())}
               className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               lowercase
@@ -777,14 +798,14 @@ export const WordCounterCalculator: React.FC<CalculatorActionProps> = ({ onSaveC
             </button>
             <button
               type="button"
-              onClick={() => setText('')}
+              onClick={() => transformText('')}
               className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer"
             >
               Clear Text
             </button>
             <button
               type="button"
-              onClick={() => setText(DEFAULT_SAMPLE_TEXT)}
+              onClick={() => transformText(DEFAULT_SAMPLE_TEXT)}
               className="px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-pointer"
             >
               Restore Sample
@@ -884,6 +905,9 @@ export const UnitConverterCalculator: React.FC<CalculatorActionProps> = ({ onSav
 
   const handleCategoryChange = (nextCat: UnitCategory) => {
     setCategory(nextCat);
+    if (nextCat !== 'temperature' && inputValue < 0) {
+      setInputValue(Math.abs(inputValue));
+    }
     const nextUnits = UNIT_DEFINITIONS[nextCat];
     setFromUnit(nextUnits[0].id);
     setToUnit((nextUnits[1] ?? nextUnits[0]).id);
@@ -893,6 +917,8 @@ export const UnitConverterCalculator: React.FC<CalculatorActionProps> = ({ onSav
     setFromUnit(toDef.id);
     setToUnit(fromDef.id);
   };
+
+  const minBound = category === 'temperature' ? -459.67 : 0;
 
   const formatConvertedNumber = (val: number): string => {
     if (!Number.isFinite(val)) return '0';
@@ -951,9 +977,10 @@ export const UnitConverterCalculator: React.FC<CalculatorActionProps> = ({ onSav
           <input
             id="unit-input-val"
             type="number"
+            min={minBound}
             step="any"
             value={inputValue}
-            onChange={(e) => setInputValue(clampSafeNumber(e.target.value, -1e12, 1e12, 0))}
+            onChange={(e) => setInputValue(clampSafeNumber(e.target.value, minBound, 1e12, 0))}
             className="w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xl font-mono font-bold text-slate-900 dark:text-white tabular-nums"
           />
           <select

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "tsx --test src/utils/calculators.test.ts",
     "deploy": "gh-pages -d dist",
     "generate:sitemap": "tsx scripts/generate-sitemap.ts",
     "lint": "tsc --noEmit"
